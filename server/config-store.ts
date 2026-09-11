@@ -26,6 +26,25 @@ const TIME_FORMATS: TimeFormat[] = ['countdown', 'clock']
 const COLUMN_SETTINGS: ColumnSetting[] = ['auto', '1', '2', '3', '4']
 const CARD_KINDS: CardKind[] = ['train', 'bus']
 
+/**
+ * Creates the data directory and proves we can write to it.
+ *
+ * Throws rather than warns on purpose. A read-only mount otherwise fails only
+ * on the first save, which is caught and logged -- so the UI accepts the change,
+ * the in-memory copy reflects it, and the loss only surfaces after a restart.
+ * A container that refuses to start is much easier to diagnose than settings
+ * that quietly do not stick.
+ */
+export async function ensureDataDir(dir: string): Promise<void> {
+  await fs.mkdir(dir, { recursive: true })
+  const probe = path.join(dir, `.write-probe-${process.pid}`)
+  try {
+    await fs.writeFile(probe, '')
+  } finally {
+    await fs.rm(probe, { force: true }).catch(() => {})
+  }
+}
+
 export function defaultConfig(): Config {
   return {
     cards: [],

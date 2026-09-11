@@ -4,14 +4,20 @@ services:
     image: cta-dashboard
     container_name: cta-dashboard
     restart: unless-stopped
-    # Bind to localhost by default. Put a reverse proxy, Tailscale or
-    # Cloudflare Access in front of it before exposing it publicly -- the app
-    # itself has no authentication.
-    ports:
-      - '127.0.0.1:3000:3000'
+    # Optional: a platform that injects environment variables directly has no
+    # .env file, and a missing one should not fail the deploy.
     env_file:
-      - .env
+      - path: .env
+        required: false
+    # Loopback by default: the app has no authentication, so it should not be
+    # reachable from outside the host until something in front of it is.
+    # Set PUBLISH_ADDR=0.0.0.0:3000 to publish it, or drop this block entirely
+    # when a reverse proxy reaches the container over a shared Docker network.
+    ports:
+      - '${PUBLISH_ADDR:-127.0.0.1:3000}:3000'
     volumes:
+      # A named volume, so it inherits the image's ownership and the container
+      # user can write to it. A host bind mount would need chown 1000:1000.
       - cta-data:/data
 
 volumes:

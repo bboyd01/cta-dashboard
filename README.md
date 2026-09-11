@@ -61,19 +61,115 @@ Two things worth knowing:
 
 If the webhook is not set, digest rules can still be edited — nothing sends.
 
-## Deploying
+## Deploying with Docker
+
+The repo builds to a single self-contained image: one process serving the API,
+the built client and the digest scheduler. There is nothing else to run
+alongside it — no database, no worker, no cache.
+
+### What the container needs
+
+| | |
+| --- | --- |
+| Build | The `Dockerfile` at the repo root. No build args |
+| Listens on | `3000` (override with `PORT`) |
+| Health check | `GET /api/health` — already declared in the image |
+| Persistent storage | Mounted at **`/data`** |
+| Runs as | uid **1000**, non-root |
+| Outbound access | `lapi.transitchicago.com`, `ctabustracker.com`, `data.cityofchicago.org`, and `discord.com` if you use digests |
+
+Set the environment variables from the [Environment](#environment) table below.
+`DATA_DIR` is already `/data` in the image — leave it alone unless you mount
+somewhere else.
+
+### On a platform that builds from your repository
+
+Point it at this repo and let it build the `Dockerfile`. Then:
+
+1. **Set the environment variables** in the platform's UI — at minimum
+   `CTA_TRAIN_API_KEY` and `CTA_BUS_API_KEY`, plus `DISCORD_WEBHOOK_URL` if you
+   want digests. Don't commit a `.env`; it's gitignored for a reason.
+2. **Add persistent storage mounted at `/data`.** Without it your cards, display
+   options and digest rules are wiped on every redeploy, and the station list is
+   re-fetched from scratch each time.
+3. **Set the port to 3000** so the platform's proxy routes to it. The container
+   only ever listens on `PORT`; it does not publish anything itself.
+4. **Put the platform's own auth in front of it** if it's on a public domain —
+   see the warning below.
+
+Redeploying is safe: `/data` is untouched by a rebuild, so your configuration
+survives.
+
+### With Compose on a plain VPS
 
 ```bash
 cp .env.example .env        # fill in your keys
 docker compose up -d --build
 ```
 
-The compose file binds to `127.0.0.1:3000`. **The app has no authentication**,
-so put Tailscale, Cloudflare Access or reverse-proxy auth in front of it before
-exposing it to the internet.
+This binds to `127.0.0.1:3000`, reachable only from the host, because the app
+has no authentication. Two ways to change that:
 
-`config.json` and `stations.json` live on the `cta-data` volume and survive
-redeploys.
+```bash
+# Publish it directly (only behind a firewall or an authenticating proxy)
+PUBLISH_ADDR=0.0.0.0:3000 docker compose up -d
+
+# Or delete the `ports:` block and attach your reverse proxy to the same
+# Docker network, reaching the container as cta-dashboard:3000
+```
+
+### Plain docker run
+
+```bash
+docker build -t cta-dashboard .
+docker volume create cta-data
+docker run -d --name cta-dashboard --restart unless-stopped \
+  -p 127.0.0.1:3000:3000 \
+  -v cta-data:/data \
+  -e CTA_TRAIN_API_KEY=... \
+  -e CTA_BUS_API_KEY=... \
+  -e DISCORD_WEBHOOK_URL=... \
+  cta-dashboard
+```
+
+### Persistent data, and the one gotcha
+
+`/data` holds `config.json` (cards, display options, digest rules) and
+`stations.json` (the cached 'L' station list).
+
+A **named volume** inherits the image's ownership and just works. A **host
+directory** (`-v /srv/cta:/data`) is created root-owned, and the container runs
+as uid 1000, so it cannot write there. Fix it once on the host:
+
+```bash
+sudo chown -R 1000:1000 /srv/cta
+```
+
+The container checks this at startup and **exits immediately** with that
+instruction if `/data` is not writable — deliberately, because the alternative
+is a dashboard that accepts your settings and silently loses them on restart.
+If the container won't start, read the first lines of its log.
+
+### No authentication
+
+**The app has no login.** Anyone who can reach it can see your cards and change
+your settings and digests. Your API keys are never exposed to the browser, but
+everything else is. Before putting it on a public domain, front it with your
+platform's built-in auth, Cloudflare Access, Tailscale, or reverse-proxy basic
+auth.
+
+### First boot
+
+Expect this in the log:
+
+```
+[stations] refreshed <N> stations from the data portal
+```
+
+That is the full station list landing in `/data` — around 145 of them. If you instead see
+`falling back to the bundled seed`, outbound HTTPS to `data.cityofchicago.org`
+is blocked — the dashboard still runs, but the picker only offers a handful of
+stations until it succeeds. The Options page shows which source is in use.
 
 ## How it works
 
@@ -140,5 +236,6 @@ needs to change.
 | `CTA_TRAIN_API_KEY` | — | Train Tracker |
 | `CTA_BUS_API_KEY` | — | Bus Tracker |
 | `DISCORD_WEBHOOK_URL` | — | Blank disables digests |
-| `DATA_DIR` | `./data` | `/data` in the container |
+| `DATA_DIR` | `./data` | `/data` in the container; leave as-is there |
 | `CTA_MOCK` | `0` | `1` serves fixtures, no keys needed |
+| `PUBLISH_ADDR` | `127.0.0.1:3000` | Compose only — where to publish the port |

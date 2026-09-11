@@ -8,7 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadEnv, envWarnings } from './env.ts'
 import { hasTimeZoneSupport, CHICAGO } from '../shared/time.ts'
-import { ConfigStore } from './config-store.ts'
+import { ConfigStore, ensureDataDir } from './config-store.ts'
 import { TtlCache } from './cache.ts'
 import { createProvider } from './cta/index.ts'
 import { StationIndex, loadStations } from './stations/index.ts'
@@ -30,6 +30,20 @@ export async function createServer() {
     console.error(
       `[time] This Node build cannot resolve ${CHICAGO}. Every departure time will be ` +
         'wrong. Use a Node build with full ICU (the official node images have it).',
+    )
+  }
+
+  try {
+    await ensureDataDir(env.dataDir)
+  } catch (error) {
+    const uid = typeof process.getuid === 'function' ? process.getuid() : 'this process'
+    throw new Error(
+      `Cannot write to DATA_DIR (${env.dataDir}) as uid ${uid}: ` +
+        `${error instanceof Error ? error.message : String(error)}\n` +
+        'Settings and the station cache live there. If you mounted a host directory, ' +
+        'give it to the container user: chown -R 1000:1000 <that directory>. ' +
+        'A named volume needs no such step.',
+      { cause: error },
     )
   }
 
