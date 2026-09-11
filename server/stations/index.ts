@@ -33,10 +33,36 @@ const LINE_COLUMNS: Record<string, string> = {
   org: 'Org', o: 'Org', p: 'P', pexp: 'P', pnk: 'Pink', pink: 'Pink', y: 'Y',
 }
 
+/**
+ * Dataset wording -> the direction CTA actually publishes, keyed in lower case.
+ *
+ * The city dataset names the two Loop elevated tracks 'Inner Loop' and 'Outer
+ * Loop', which is track geography, not a direction any rider sees: CTA calls
+ * both of them Loop service, so both normalize to 'Loop-bound'. Two platforms
+ * folding onto one label is expected, and callers merge them into a single
+ * choice that watches both stop ids.
+ */
+const DIRECTION_ALIASES: Record<string, string> = {
+  'inner loop': 'Loop-bound',
+  'outer loop': 'Loop-bound',
+  'loop bound': 'Loop-bound',
+  // Abbreviations the dataset uses and CTA spells out.
+  'forest pk-bound': 'Forest Park-bound',
+  'midway bound': 'Midway-bound',
+}
+
+/** Folds dataset phrasing onto CTA's own direction wording. */
+export function normalizeDirectionLabel(label: string): string {
+  const cleaned = label.trim().replace(/\s+/g, ' ')
+  return DIRECTION_ALIASES[cleaned.toLowerCase()] ?? cleaned
+}
+
 /** 'Western (Loop-bound)' -> 'Loop-bound'; falls back to the compass direction. */
 export function stopLabel(stopName: string, direction: string): string {
   const match = /\(([^)]+)\)\s*$/.exec(stopName.trim())
-  if (match) return match[1].trim()
+  if (match) return normalizeDirectionLabel(match[1])
+  // The compass words match the directions Bus Tracker reports, so a bus card
+  // and a train card without a parenthetical read the same way.
   return { N: 'Northbound', S: 'Southbound', E: 'Eastbound', W: 'Westbound' }[direction] ?? direction
 }
 
@@ -106,7 +132,16 @@ async function readCached(filePath: string): Promise<StationFile | null> {
     return {
       source: parsed.source === 'portal' ? 'portal' : 'seed',
       fetchedAt: typeof parsed.fetchedAt === 'string' ? parsed.fetchedAt : null,
-      stations: parsed.stations as Station[],
+      // Labels are normalized again on read, not just on fetch: a copy cached
+      // before the alias table existed would otherwise keep its raw wording
+      // for up to a month.
+      stations: (parsed.stations as Station[]).map((station) => ({
+        ...station,
+        stops: station.stops.map((stop) => ({
+          ...stop,
+          label: normalizeDirectionLabel(stop.label),
+        })),
+      })),
     }
   } catch {
     return null
