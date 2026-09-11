@@ -260,7 +260,8 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   flex-wrap: wrap;
   align-items: baseline;
   column-gap: 0.3em;
-  margin: 3px 0 0;
+  margin: 3px 0 0 -42px;
+  padding-left: 42px;
   font-size: var(--card-font-sm);
   line-height: 1.25;
   color: var(--text-muted);
