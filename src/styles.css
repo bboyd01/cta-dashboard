@@ -201,9 +201,12 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* ---- departure card ---- */
 
 .card {
-  /* One type size for everything on the card: the size the next arrival used to
-     have alone. Emphasis comes from weight and color instead. */
+  /* One type size for most of the card: the size the next arrival used to
+     have alone. Emphasis comes from weight and color instead. The line name
+     runs larger and the station/direction/time run smaller. */
   --card-font: 1.35rem;
+  --card-font-lg: 1.62rem;
+  --card-font-sm: 1.19rem;
   font-size: var(--card-font);
   position: relative;
   background: var(--surface);
@@ -243,7 +246,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .card-title {
   margin: 0;
-  font-size: var(--card-font);
+  font-size: var(--card-font-lg);
   font-weight: 650;
   letter-spacing: -0.015em;
   line-height: 1.2;
@@ -258,7 +261,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   align-items: baseline;
   column-gap: 0.3em;
   margin: 3px 0 0;
-  font-size: var(--card-font);
+  font-size: var(--card-font-sm);
   line-height: 1.25;
   color: var(--text-muted);
   overflow-wrap: break-word;
@@ -299,7 +302,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  font-size: var(--card-font);
+  font-size: var(--card-font-sm);
   color: var(--text-muted);
 }
 
@@ -311,7 +314,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 
 .departure-time {
-  font-size: var(--card-font);
+  font-size: var(--card-font-sm);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
@@ -346,7 +349,11 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 @media (max-width: 900px) {
   .grid[data-columns='2'] .card,
   .grid[data-columns='3'] .card,
-  .grid[data-columns='4'] .card { --card-font: 1.1rem; }
+  .grid[data-columns='4'] .card {
+    --card-font: 1.1rem;
+    --card-font-lg: 1.32rem;
+    --card-font-sm: 0.97rem;
+  }
 
   .grid[data-columns='2'] .card-head,
   .grid[data-columns='3'] .card-head,
