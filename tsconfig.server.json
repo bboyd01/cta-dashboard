@@ -17,5 +17,6 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "include": ["server", "shared", "scripts"]
+  "include": ["server", "shared", "scripts"],
+  "exclude": ["**/*.test.ts"]
 }

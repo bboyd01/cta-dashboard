@@ -240,14 +240,14 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   font-weight: 650;
   letter-spacing: -0.015em;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .card-subtitle {
   margin: 2px 0 0;
   font-size: 0.83rem;
   color: var(--text-muted);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .departures {
@@ -269,8 +269,16 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .departure:first-child { border-top: none; padding-top: 3px; }
 
 .departure-dest {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   font-size: 0.95rem;
   color: var(--text-muted);
+}
+
+/* Only the destination truncates; the flag beside it stays whole. */
+.departure-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -287,13 +295,15 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .departure-time[data-due='true'] { color: var(--accent); }
 
 .departure-flag {
+  flex: none;
   font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--danger);
-  margin-left: 6px;
+  /* A scheduled estimate is information, not a problem; only delay is a warning. */
+  color: var(--text-faint);
 }
+.departure-flag[data-kind='delayed'] { color: var(--danger); }
 
 .card-empty {
   padding: 6px 14px 16px;
@@ -301,6 +311,49 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   color: var(--text-faint);
 }
 .card-empty[data-error='true'] { color: var(--danger); }
+
+/* Two columns below ~520px leaves very little width per card, so tighten the
+   chrome rather than let the content wrap raggedly. */
+@media (max-width: 520px) {
+  .grid[data-columns='2'] .card-head,
+  .grid[data-columns='3'] .card-head,
+  .grid[data-columns='4'] .card-head { padding: 10px 6px 6px 10px; gap: 7px; }
+
+  .grid[data-columns='2'] .card-title,
+  .grid[data-columns='3'] .card-title,
+  .grid[data-columns='4'] .card-title { font-size: 1.02rem; }
+
+  .grid[data-columns='2'] .card-badge,
+  .grid[data-columns='3'] .card-badge,
+  .grid[data-columns='4'] .card-badge { width: 27px; height: 27px; border-radius: 8px; }
+
+  .grid[data-columns='2'] .departures,
+  .grid[data-columns='3'] .departures,
+  .grid[data-columns='4'] .departures { padding: 2px 10px 11px; }
+
+  .grid[data-columns='2'] .departure-time,
+  .grid[data-columns='3'] .departure-time,
+  .grid[data-columns='4'] .departure-time { font-size: 1rem; }
+
+  .grid[data-columns='2'] .departure:first-child .departure-time,
+  .grid[data-columns='3'] .departure:first-child .departure-time,
+  .grid[data-columns='4'] .departure:first-child .departure-time { font-size: 1.18rem; }
+
+  /* The flag word costs more width than the destination can spare here, which
+     truncated "O'Hare" to "O…". Collapse it to a dot; the text stays in the DOM
+     for screen readers. */
+  .grid[data-columns='2'] .departure-flag,
+  .grid[data-columns='3'] .departure-flag,
+  .grid[data-columns='4'] .departure-flag {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    font-size: 0;
+    letter-spacing: 0;
+    align-self: center;
+  }
+}
 
 /* ---- menu ---- */
 

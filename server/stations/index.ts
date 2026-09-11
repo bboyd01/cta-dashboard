@@ -13,14 +13,12 @@
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import type { Station, StationStop } from '../../shared/types.ts'
+import { SEED_STATION_ROWS } from './seed.ts'
 
 const DATASET_URL = 'https://data.cityofchicago.org/resource/8pix-ypme.json?$limit=1000'
 const FETCH_TIMEOUT_MS = 20_000
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
-
-const seedPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'seed.json')
 
 export type StationFile = {
   /** 'portal' once real data has been fetched; 'seed' until then. */
@@ -97,10 +95,8 @@ export function normalizeStations(rows: unknown): Station[] {
   return [...byMapId.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
-async function readSeed(): Promise<StationFile> {
-  const text = await fs.readFile(seedPath, 'utf8')
-  const parsed = JSON.parse(text) as { stations?: unknown }
-  return { source: 'seed', fetchedAt: null, stations: normalizeStations(parsed.stations) }
+function readSeed(): StationFile {
+  return { source: 'seed', fetchedAt: null, stations: normalizeStations(SEED_STATION_ROWS) }
 }
 
 async function readCached(filePath: string): Promise<StationFile | null> {

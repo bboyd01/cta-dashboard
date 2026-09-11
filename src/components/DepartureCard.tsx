@@ -63,9 +63,13 @@ export function DepartureCard({
             return (
               <li className="departure" key={`${departure.stopId}-${departure.arrivalAt}-${index}`}>
                 <span className="departure-dest">
-                  {departure.destination}
-                  {departure.isScheduled && <span className="departure-flag">sched</span>}
-                  {departure.isDelayed && <span className="departure-flag">delayed</span>}
+                  <span className="departure-name">{departure.destination}</span>
+                  {departure.isScheduled && (
+                    <span className="departure-flag" data-kind="scheduled">sched</span>
+                  )}
+                  {departure.isDelayed && (
+                    <span className="departure-flag" data-kind="delayed">delayed</span>
+                  )}
                 </span>
                 <span className="departure-time" data-due={time === 'Due'}>
                   {time}
