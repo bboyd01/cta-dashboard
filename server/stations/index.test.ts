@@ -39,6 +39,29 @@ describe('normalizeStations', () => {
     expect(stations[0].stops.map((s) => s.label)).toEqual(['Kimball-bound', 'Loop-bound'])
   })
 
+  it('keeps line flags per platform, not merged across the station', () => {
+    // Clark/Lake: the Blue subway platforms are not the elevated ones, so a
+    // Brown Line card must never be offered a Forest Park-bound direction.
+    const stations = normalizeStations([
+      row({ map_id: '40380', station_name: 'Clark/Lake', stop_id: '30074', direction_id: 'W',
+            stop_name: 'Clark/Lake (Forest Park-bound)', brn: false, blue: true }),
+      row({ map_id: '40380', station_name: 'Clark/Lake', stop_id: '30375', direction_id: 'S',
+            stop_name: 'Clark/Lake (Loop-bound)', brn: true }),
+    ])
+    const stops = stations[0].stops
+    expect(stations[0].lines).toEqual(['Blue', 'Brn'])
+    expect(stops.find((s) => s.stopId === '30074')!.lines).toEqual(['Blue'])
+    expect(stops.find((s) => s.stopId === '30375')!.lines).toEqual(['Brn'])
+  })
+
+  it('merges line flags when the same stop appears on several rows', () => {
+    const stations = normalizeStations([
+      row({ stop_id: '30374', brn: true }),
+      row({ stop_id: '30374', brn: false, p: true }),
+    ])
+    expect(stations[0].stops[0].lines).toEqual(['Brn', 'P'])
+  })
+
   it('collects every line serving a station', () => {
     const stations = normalizeStations([
       row({ map_id: '40380', station_name: 'Clark/Lake', stop_id: '30374', brn: true, p: true }),
@@ -138,6 +161,20 @@ describe('StationIndex', () => {
 
   it('resolves a single stop', () => {
     expect(index.stop('41320', '30225')?.label).toBe('Kimball-bound')
+  })
+
+  it('offers only the platforms a line actually calls at', () => {
+    const shared = new StationIndex({
+      source: 'seed',
+      fetchedAt: null,
+      stations: normalizeStations([
+        row({ map_id: '40380', stop_id: '30074', stop_name: 'Clark/Lake (Forest Park-bound)',
+              brn: false, blue: true }),
+        row({ map_id: '40380', stop_id: '30375', stop_name: 'Clark/Lake (Loop-bound)', brn: true }),
+      ]),
+    })
+    expect(shared.stopsForLine('40380', 'Brn').map((s) => s.label)).toEqual(['Loop-bound'])
+    expect(shared.stopsForLine('40380', 'Blue').map((s) => s.label)).toEqual(['Forest Park-bound'])
   })
 
   it('reports seed data so callers can warn about it', () => {

@@ -84,6 +84,13 @@ export type StationStop = {
   direction: string
   /** Human label parsed from the stop name, e.g. 'Loop-bound'. */
   label: string
+  /**
+   * Lines calling at this platform. Held per stop, not just per station: at a
+   * shared station like Clark/Lake the Blue Line platforms are a different pair
+   * from the elevated ones, so a Brown Line card must not offer 'Forest
+   * Park-bound' as one of its directions.
+   */
+  lines: string[]
 }
 
 export type Station = {

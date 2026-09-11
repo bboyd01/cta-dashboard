@@ -65,22 +65,33 @@ export function normalizeStations(rows: unknown): Station[] {
       byMapId.set(mapId, station)
     }
 
+    const stopLines: string[] = []
     for (const [column, lineId] of Object.entries(LINE_COLUMNS)) {
-      if (row[column] === true && !station.lines.includes(lineId)) station.lines.push(lineId)
+      if (row[column] === true && !stopLines.includes(lineId)) stopLines.push(lineId)
+    }
+    for (const lineId of stopLines) {
+      if (!station.lines.includes(lineId)) station.lines.push(lineId)
     }
 
-    if (!station.stops.some((s) => s.stopId === stopId)) {
+    const existing = station.stops.find((s) => s.stopId === stopId)
+    if (existing) {
+      for (const lineId of stopLines) {
+        if (!existing.lines.includes(lineId)) existing.lines.push(lineId)
+      }
+    } else {
       const direction = String(row.direction_id ?? '').trim()
       station.stops.push({
         stopId,
         direction,
         label: stopLabel(String(row.stop_name ?? ''), direction),
+        lines: stopLines,
       })
     }
   }
 
   for (const station of byMapId.values()) {
     station.lines.sort()
+    for (const stop of station.stops) stop.lines.sort()
     station.stops.sort((a, b) => a.label.localeCompare(b.label))
   }
   return [...byMapId.values()].sort((a, b) => a.name.localeCompare(b.name))
@@ -182,5 +193,10 @@ export class StationIndex {
 
   stop(mapId: string, stopId: string): StationStop | undefined {
     return this.#byMapId.get(mapId)?.stops.find((s) => s.stopId === stopId)
+  }
+
+  /** Only the platforms a given line actually calls at. */
+  stopsForLine(mapId: string, lineId: string): StationStop[] {
+    return this.#byMapId.get(mapId)?.stops.filter((s) => s.lines.includes(lineId)) ?? []
   }
 }
