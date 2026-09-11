@@ -24,6 +24,7 @@ export function Combobox<T extends string | number>({
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const justSelectedRef = useRef(false)
 
   const displayLabel = getDisplayLabel?.(value) ?? options.find((o) => o.value === value)?.label ?? ''
   const filteredOptions = options.filter((opt) =>
@@ -40,7 +41,7 @@ export function Combobox<T extends string | number>({
     onChange(selected)
     setFilter('')
     setOpen(false)
-    inputRef.current?.focus()
+    justSelectedRef.current = true
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -107,7 +108,12 @@ export function Combobox<T extends string | number>({
         value={open ? filter : displayLabel}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          if (!justSelectedRef.current) {
+            setOpen(true)
+          }
+          justSelectedRef.current = false
+        }}
         placeholder={placeholder}
         disabled={disabled}
         autoComplete="off"
