@@ -132,3 +132,20 @@ export function weekday(date: Date, timeZone: string = CHICAGO): number {
 function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
+
+/**
+ * Confirms the runtime can actually resolve the zone.
+ *
+ * Every departure time depends on this conversion, and a Node build without
+ * full ICU silently falls back to UTC rather than throwing — which would shift
+ * every time on the dashboard by five or six hours while still looking
+ * plausible. Checked at boot so that failure is loud instead of subtle.
+ */
+export function hasTimeZoneSupport(timeZone: string = CHICAGO): boolean {
+  try {
+    // 20:23:45Z on 15 Jan is 14:23 in Chicago (CST, UTC-6).
+    return hhmm(new Date('2026-01-15T20:23:45Z'), timeZone) === '14:23'
+  } catch {
+    return false
+  }
+}

@@ -7,6 +7,7 @@ import {
   hhmm,
   weekday,
   CHICAGO,
+  hasTimeZoneSupport,
 } from './time.ts'
 
 const at = (year: number, month: number, day: number, hour: number, minute: number, second = 0) =>
@@ -63,5 +64,16 @@ describe('zone-aware formatting', () => {
   it('derives the weekday in Chicago, not UTC', () => {
     // Saturday 02:00 UTC is still Friday in Chicago.
     expect(weekday(new Date('2026-09-12T02:00:00Z'))).toBe(5)
+  })
+})
+
+describe('hasTimeZoneSupport', () => {
+  it('confirms the runtime resolves America/Chicago', () => {
+    expect(hasTimeZoneSupport()).toBe(true)
+  })
+
+  it('reports false for a zone the runtime cannot resolve', () => {
+    // A Node build without full ICU behaves like this for every real zone.
+    expect(hasTimeZoneSupport('Not/AZone')).toBe(false)
   })
 })

@@ -1,0 +1,18 @@
+services:
+  cta-dashboard:
+    build: .
+    image: cta-dashboard
+    container_name: cta-dashboard
+    restart: unless-stopped
+    # Bind to localhost by default. Put a reverse proxy, Tailscale or
+    # Cloudflare Access in front of it before exposing it publicly -- the app
+    # itself has no authentication.
+    ports:
+      - '127.0.0.1:3000:3000'
+    env_file:
+      - .env
+    volumes:
+      - cta-data:/data
+
+volumes:
+  cta-data:

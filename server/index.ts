@@ -7,6 +7,7 @@ import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadEnv, envWarnings } from './env.ts'
+import { hasTimeZoneSupport, CHICAGO } from '../shared/time.ts'
 import { ConfigStore } from './config-store.ts'
 import { TtlCache } from './cache.ts'
 import { createProvider } from './cta/index.ts'
@@ -23,6 +24,14 @@ const clientDir = path.resolve(here, '../client')
 export async function createServer() {
   const env = loadEnv()
   for (const warning of envWarnings(env)) console.warn(`[env] ${warning}`)
+
+  // Without this the times would still render, just silently wrong by hours.
+  if (!hasTimeZoneSupport()) {
+    console.error(
+      `[time] This Node build cannot resolve ${CHICAGO}. Every departure time will be ` +
+        'wrong. Use a Node build with full ICU (the official node images have it).',
+    )
+  }
 
   const store = new ConfigStore(env.configPath)
   await store.load()
