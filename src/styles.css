@@ -182,7 +182,8 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .grid[data-columns='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 /* Fixed column counts are an upper bound, not a floor: never force 4 narrow
-   columns onto a phone just because the preference says 4. */
+   columns onto a phone just because the preference says 4. Card text is one
+   large size now, so a phone gets a single column rather than two cramped ones. */
 @media (max-width: 1100px) {
   .grid[data-columns='4'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -190,14 +191,20 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .grid[data-columns='3'],
   .grid[data-columns='4'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 460px) {
+@media (max-width: 560px) {
+  .grid,
+  .grid[data-columns='2'],
   .grid[data-columns='3'],
-  .grid[data-columns='4'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid[data-columns='4'] { grid-template-columns: 1fr; }
 }
 
 /* ---- departure card ---- */
 
 .card {
+  /* One type size for everything on the card: the size the next arrival used to
+     have alone. Emphasis comes from weight and color instead. */
+  --card-font: 1.35rem;
+  font-size: var(--card-font);
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -236,19 +243,38 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .card-title {
   margin: 0;
-  font-size: 1.16rem;
+  font-size: var(--card-font);
   font-weight: 650;
   letter-spacing: -0.015em;
   line-height: 1.2;
   overflow-wrap: break-word;
 }
 
+/* Laid out as parts rather than one string so a narrow card breaks between the
+   station and the direction, instead of hyphenating 'Howard-bound' in half. */
 .card-subtitle {
-  margin: 2px 0 0;
-  font-size: 0.83rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.3em;
+  margin: 3px 0 0;
+  font-size: var(--card-font);
+  line-height: 1.25;
   color: var(--text-muted);
   overflow-wrap: break-word;
 }
+
+/* The station or stop is the thing you scan for, so it carries the weight. */
+.card-where { font-weight: 700; color: var(--text); }
+
+.card-direction {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card .btn-icon { font-size: var(--card-font); }
 
 .departures {
   list-style: none;
@@ -271,9 +297,9 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .departure-dest {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  font-size: 0.95rem;
+  font-size: var(--card-font);
   color: var(--text-muted);
 }
 
@@ -285,18 +311,19 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 
 .departure-time {
-  font-size: 1.12rem;
+  font-size: var(--card-font);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
-.departure:first-child .departure-time { font-size: 1.35rem; }
+/* The next arrival no longer wins on size, so it wins on weight. */
+.departure:first-child .departure-time { font-weight: 750; }
 .departure-time[data-due='true'] { color: var(--accent); }
 
 .departure-flag {
   flex: none;
-  font-size: 0.72rem;
+  font-size: var(--card-font);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -307,37 +334,31 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .card-empty {
   padding: 6px 14px 16px;
-  font-size: 0.9rem;
+  font-size: var(--card-font);
   color: var(--text-faint);
 }
 .card-empty[data-error='true'] { color: var(--danger); }
 
 /* Two columns below ~520px leaves very little width per card, so tighten the
    chrome rather than let the content wrap raggedly. */
-@media (max-width: 520px) {
+/* Several columns on a narrow screen leaves little width per card. The cards
+   keep one type size — just a smaller one — rather than reintroducing a mix. */
+@media (max-width: 900px) {
+  .grid[data-columns='2'] .card,
+  .grid[data-columns='3'] .card,
+  .grid[data-columns='4'] .card { --card-font: 1.1rem; }
+
   .grid[data-columns='2'] .card-head,
   .grid[data-columns='3'] .card-head,
   .grid[data-columns='4'] .card-head { padding: 10px 6px 6px 10px; gap: 7px; }
 
-  .grid[data-columns='2'] .card-title,
-  .grid[data-columns='3'] .card-title,
-  .grid[data-columns='4'] .card-title { font-size: 1.02rem; }
-
   .grid[data-columns='2'] .card-badge,
   .grid[data-columns='3'] .card-badge,
-  .grid[data-columns='4'] .card-badge { width: 27px; height: 27px; border-radius: 8px; }
+  .grid[data-columns='4'] .card-badge { width: 28px; height: 28px; border-radius: 8px; }
 
   .grid[data-columns='2'] .departures,
   .grid[data-columns='3'] .departures,
   .grid[data-columns='4'] .departures { padding: 2px 10px 11px; }
-
-  .grid[data-columns='2'] .departure-time,
-  .grid[data-columns='3'] .departure-time,
-  .grid[data-columns='4'] .departure-time { font-size: 1rem; }
-
-  .grid[data-columns='2'] .departure:first-child .departure-time,
-  .grid[data-columns='3'] .departure:first-child .departure-time,
-  .grid[data-columns='4'] .departure:first-child .departure-time { font-size: 1.18rem; }
 
   /* The flag word costs more width than the destination can spare here, which
      truncated "O'Hare" to "O…". Collapse it to a dot; the text stays in the DOM
@@ -345,8 +366,8 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .grid[data-columns='2'] .departure-flag,
   .grid[data-columns='3'] .departure-flag,
   .grid[data-columns='4'] .departure-flag {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: currentColor;
     font-size: 0;
@@ -355,25 +376,10 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   }
 }
 
-/* ---- menu ---- */
-
-.menu-wrap { position: relative; flex: none; }
-
-.menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 30;
-  min-width: 210px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
-  padding: 5px;
-}
+/* ---- card sheet (opened from the card's ⋯ button) ---- */
 
 .menu-label {
-  padding: 7px 10px 3px;
+  padding: 10px 10px 4px;
   font-size: 0.72rem;
   font-weight: 650;
   text-transform: uppercase;
@@ -390,15 +396,17 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   text-align: left;
   background: none;
   border: none;
-  border-radius: 7px;
-  padding: 8px 10px;
-  font-size: 0.92rem;
+  border-radius: 9px;
+  /* Comfortably tappable: this is a phone-sized target, not a desktop menu row. */
+  padding: 12px 10px;
+  font-size: 1.02rem;
   cursor: pointer;
 }
 .menu-item:hover { background: var(--surface-2); }
+.menu-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .menu-item[aria-checked='true'] { font-weight: 650; color: var(--accent); }
 .menu-item-danger { color: var(--danger); }
-.menu-sep { height: 1px; background: var(--border); margin: 5px 4px; }
+.menu-sep { height: 1px; background: var(--border); margin: 6px 4px; }
 
 /* ---- dialog ---- */
 
@@ -430,6 +438,14 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 @media (min-width: 640px) {
   .dialog { border-radius: var(--radius); }
 }
+
+/* The card sheet is a short list, so it hugs its content instead of filling the
+   screen — but it is still bounded by the viewport and scrolls on its own, which
+   is what the clipped dropdown could not do. */
+.dialog-sheet { padding-top: 16px; }
+.dialog-sheet:focus { outline: none; }
+.dialog-sheet .dialog-hint { margin-bottom: 4px; }
+.dialog-sheet .dialog-actions { margin-top: 12px; }
 
 .dialog h2 {
   margin: 0 0 4px;

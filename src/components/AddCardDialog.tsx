@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { BusRoute, BusStop, Card, Station } from '../../shared/types.ts'
 import { LINES, type LineId } from '../../shared/lines.ts'
+import { directionOptions } from '../../shared/directions.ts'
 import { api, type LineSummary } from '../api.ts'
 
 type Props = {
@@ -127,6 +128,9 @@ function TrainPicker({ existing, onCancel, onSave }: Props) {
     () => station?.stops.filter((stop) => stop.lines.includes(line)) ?? [],
     [station, line],
   )
+  // Platforms that share a direction — both Loop elevated tracks are 'Loop-bound'
+  // — are one choice covering both stop ids, not two identical options.
+  const directions = useMemo(() => directionOptions(stops), [stops])
 
   useEffect(() => {
     if (direction !== BOTH && !stops.some((stop) => stop.label === direction)) setDirection(BOTH)
@@ -181,8 +185,8 @@ function TrainPicker({ existing, onCancel, onSave }: Props) {
       <div className="field">
         <label htmlFor="direction">Direction</label>
         <select id="direction" value={direction} onChange={(e) => setDirection(e.target.value)}>
-          {stops.map((stop) => (
-            <option key={stop.stopId} value={stop.label}>{stop.label}</option>
+          {directions.map((option) => (
+            <option key={option.label} value={option.label}>{option.label}</option>
           ))}
           <option value={BOTH}>Both directions</option>
         </select>

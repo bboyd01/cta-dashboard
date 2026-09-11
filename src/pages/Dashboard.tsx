@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Card, Station } from '../../shared/types.ts'
+import { directionOptions } from '../../shared/directions.ts'
 import { api } from '../api.ts'
 import { useDepartures } from '../hooks/useDepartures.ts'
 import type { ConfigState } from '../hooks/useConfig.ts'
@@ -40,11 +41,12 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
       .find((station) => station.mapId === card.stationId)
       ?.stops.filter((stop) => stop.lines.includes(card.route)) ?? []
     if (stops.length === 0) return []
+    const options = directionOptions(stops)
     return [
-      ...stops.map((stop) => ({
-        direction: stop.label,
-        label: stop.label,
-        stopIds: [stop.stopId],
+      ...options.map((option) => ({
+        direction: option.label,
+        label: option.label,
+        stopIds: option.stopIds,
       })),
       { direction: null, label: 'Both directions', stopIds: stops.map((stop) => stop.stopId) },
     ]

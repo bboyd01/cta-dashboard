@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { normalizeStations, stopLabel, loadStations, StationIndex } from './index.ts'
+import {
+  normalizeStations, stopLabel, normalizeDirectionLabel, loadStations, StationIndex,
+} from './index.ts'
 
 const row = (over: Record<string, unknown> = {}) => ({
   map_id: '41320',
@@ -26,6 +28,26 @@ describe('stopLabel', () => {
 
   it('falls back to the raw direction when even that is unknown', () => {
     expect(stopLabel('Western', 'XX')).toBe('XX')
+  })
+
+  it('speaks CTA directions, not the dataset track names for the Loop', () => {
+    expect(stopLabel('Clark/Lake (Inner Loop)', 'N')).toBe('Loop-bound')
+    expect(stopLabel('Washington/Wells (Outer Loop)', 'S')).toBe('Loop-bound')
+  })
+
+  it('spells out the abbreviations in the dataset', () => {
+    expect(stopLabel('UIC-Halsted (Forest Pk-bound)', 'W')).toBe('Forest Park-bound')
+  })
+})
+
+describe('normalizeDirectionLabel', () => {
+  it('leaves a direction CTA already publishes alone', () => {
+    expect(normalizeDirectionLabel('Howard-bound')).toBe('Howard-bound')
+    expect(normalizeDirectionLabel('Northbound')).toBe('Northbound')
+  })
+
+  it('is insensitive to case and stray whitespace', () => {
+    expect(normalizeDirectionLabel('  inner   loop ')).toBe('Loop-bound')
   })
 })
 
@@ -130,6 +152,22 @@ describe('loadStations', () => {
     await fs.writeFile(file(), JSON.stringify(stale), 'utf8')
     const loaded = await loadStations(file())
     expect(loaded.stations[0].name).toBe('Stale')
+  })
+
+  it('renormalizes labels in a copy cached before the alias table existed', async () => {
+    const cached = {
+      source: 'portal',
+      fetchedAt: new Date().toISOString(),
+      stations: [{
+        mapId: '40380',
+        name: 'Clark/Lake',
+        lines: ['Brn'],
+        stops: [{ stopId: '30375', direction: 'N', label: 'Inner Loop', lines: ['Brn'] }],
+      }],
+    }
+    await fs.writeFile(file(), JSON.stringify(cached), 'utf8')
+    const loaded = await loadStations(file())
+    expect(loaded.stations[0].stops[0].label).toBe('Loop-bound')
   })
 
   it('ignores an unreadable cache and still returns usable data', async () => {

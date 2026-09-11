@@ -24,7 +24,7 @@ export function DepartureCard({
   const accent = accentFor(card.route)
   const departures = (result?.departures ?? []).slice(0, limit)
   const where = card.stationName || card.stationId
-  const subtitle = card.direction ? `${where} · ${card.direction}` : `${where} · Both directions`
+  const direction = card.direction ?? 'Both directions'
 
   return (
     <article
@@ -41,10 +41,15 @@ export function DepartureCard({
         </span>
         <div className="card-heading">
           <h2 className="card-title">{card.title}</h2>
-          <p className="card-subtitle">{subtitle}</p>
+          <p className="card-subtitle">
+            <span className="card-where">{where}</span>
+            <span aria-hidden="true">·</span>
+            <span className="card-direction">{direction}</span>
+          </p>
         </div>
         <CardMenu
           card={card}
+          subtitle={`${where} · ${direction}`}
           choices={directionChoices}
           onChangeDirection={onChangeDirection}
           onReconfigure={onReconfigure}
