@@ -243,7 +243,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .card-title {
   margin: 0;
-  font-size: var(--card-font);
+  font-size: calc(var(--card-font) * 1.2);
   font-weight: 650;
   letter-spacing: -0.015em;
   line-height: 1.2;
@@ -258,7 +258,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   align-items: baseline;
   column-gap: 0.3em;
   margin: 3px 0 0;
-  font-size: var(--card-font);
+  font-size: calc(var(--card-font) * 0.88);
   line-height: 1.25;
   color: var(--text-muted);
   overflow-wrap: break-word;
@@ -299,7 +299,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  font-size: var(--card-font);
+  font-size: calc(var(--card-font) * 0.88);
   color: var(--text-muted);
 }
 
@@ -311,7 +311,7 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 
 .departure-time {
-  font-size: var(--card-font);
+  font-size: calc(var(--card-font) * 0.88);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
