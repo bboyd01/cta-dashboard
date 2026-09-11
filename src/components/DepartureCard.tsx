@@ -41,11 +41,6 @@ export function DepartureCard({
         </span>
         <div className="card-heading">
           <h2 className="card-title">{card.title}</h2>
-          <p className="card-subtitle">
-            <span className="card-where">{where}</span>
-            <span aria-hidden="true">·</span>
-            <span className="card-direction">{direction}</span>
-          </p>
         </div>
         <CardMenu
           card={card}
@@ -56,6 +51,12 @@ export function DepartureCard({
           onRemove={onRemove}
         />
       </div>
+
+      <p className="card-subtitle">
+        <span className="card-where">{where}</span>
+        <span aria-hidden="true">·</span>
+        <span className="card-direction">{direction}</span>
+      </p>
 
       {result?.error ? (
         <p className="card-empty" data-error="true">{result.error}</p>
