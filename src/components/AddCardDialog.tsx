@@ -12,6 +12,7 @@ import type { BusRoute, BusStop, Card, Station } from '../../shared/types.ts'
 import { LINES, type LineId } from '../../shared/lines.ts'
 import { directionOptions } from '../../shared/directions.ts'
 import { api, type LineSummary } from '../api.ts'
+import { Combobox } from './Combobox.tsx'
 
 type Props = {
   /** Present when editing an existing card. */
@@ -164,32 +165,46 @@ function TrainPicker({ existing, onCancel, onSave }: Props) {
       )}
 
       <div className="field">
-        <label htmlFor="line">Line</label>
-        <select id="line" value={line} onChange={(e) => setLine(e.target.value as LineId)}>
-          {(lines.length ? lines : Object.values(LINES)).map((item) => (
-            <option key={item.id} value={item.id}>{item.name}</option>
-          ))}
-        </select>
+        <label>Line</label>
+        <Combobox<LineId>
+          value={line}
+          onChange={setLine}
+          options={(lines.length ? lines : Object.values(LINES)).map((item) => ({
+            value: item.id,
+            label: item.name,
+          }))}
+          placeholder="Search lines..."
+        />
       </div>
 
       <div className="field">
-        <label htmlFor="station">Station</label>
-        <select id="station" value={mapId} onChange={(e) => setMapId(e.target.value)}>
-          {stations.length === 0 && <option value="">No stations available</option>}
-          {stations.map((item) => (
-            <option key={item.mapId} value={item.mapId}>{item.name}</option>
-          ))}
-        </select>
+        <label>Station</label>
+        <Combobox
+          value={mapId}
+          onChange={setMapId}
+          options={stations.map((item) => ({
+            value: item.mapId,
+            label: item.name,
+          }))}
+          placeholder="Search stations..."
+          disabled={stations.length === 0}
+        />
       </div>
 
       <div className="field">
-        <label htmlFor="direction">Direction</label>
-        <select id="direction" value={direction} onChange={(e) => setDirection(e.target.value)}>
-          {directions.map((option) => (
-            <option key={option.label} value={option.label}>{option.label}</option>
-          ))}
-          <option value={BOTH}>Both directions</option>
-        </select>
+        <label>Direction</label>
+        <Combobox
+          value={direction}
+          onChange={setDirection}
+          options={[
+            ...directions.map((option) => ({
+              value: option.label,
+              label: option.label,
+            })),
+            { value: BOTH, label: 'Both directions' },
+          ]}
+          placeholder="Select direction..."
+        />
       </div>
 
       <Actions onCancel={onCancel} disabled={!station || stops.length === 0} />
@@ -274,32 +289,45 @@ function BusPicker({ existing, onCancel, onSave }: Props) {
       {error && <p className="banner banner-error">{error}</p>}
 
       <div className="field">
-        <label htmlFor="route">Route</label>
-        <select id="route" value={route} onChange={(e) => setRoute(e.target.value)}>
-          {routes.length === 0 && <option value="">No routes available</option>}
-          {routes.map((item) => (
-            <option key={item.route} value={item.route}>#{item.route} {item.name}</option>
-          ))}
-        </select>
+        <label>Route</label>
+        <Combobox
+          value={route}
+          onChange={setRoute}
+          options={routes.map((item) => ({
+            value: item.route,
+            label: `#${item.route} ${item.name}`,
+          }))}
+          placeholder="Search routes..."
+          disabled={routes.length === 0}
+        />
       </div>
 
       <div className="field">
-        <label htmlFor="bus-direction">Direction</label>
-        <select
-          id="bus-direction" value={direction} onChange={(e) => setDirection(e.target.value)}
-        >
-          {directions.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
+        <label>Direction</label>
+        <Combobox
+          value={direction}
+          onChange={setDirection}
+          options={directions.map((item) => ({
+            value: item,
+            label: item,
+          }))}
+          placeholder="Select direction..."
+          disabled={directions.length === 0}
+        />
       </div>
 
       <div className="field">
-        <label htmlFor="stop">Stop</label>
-        <select id="stop" value={stopId} onChange={(e) => setStopId(e.target.value)}>
-          {stops.length === 0 && <option value="">No stops available</option>}
-          {stops.map((item) => (
-            <option key={item.stopId} value={item.stopId}>{item.name}</option>
-          ))}
-        </select>
+        <label>Stop</label>
+        <Combobox
+          value={stopId}
+          onChange={setStopId}
+          options={stops.map((item) => ({
+            value: item.stopId,
+            label: item.name,
+          }))}
+          placeholder="Search stops..."
+          disabled={stops.length === 0}
+        />
         <p className="setting-hint">
           A bus stop id covers one side of the street, so each direction is its own card.
         </p>

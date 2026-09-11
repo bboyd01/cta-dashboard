@@ -605,6 +605,67 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   border: 0;
 }
 
+/* ---- combobox ---- */
+
+.combobox-wrapper {
+  position: relative;
+}
+
+.combobox-wrapper input {
+  width: 100%;
+}
+
+.combobox-listbox {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.combobox-option {
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.combobox-option:hover,
+.combobox-option[data-highlighted='true'] {
+  background: var(--surface-2);
+}
+
+.combobox-option[aria-selected='true'] {
+  font-weight: 550;
+  color: var(--accent);
+}
+
+.combobox-checkmark {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.combobox-empty {
+  padding: 12px 10px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
