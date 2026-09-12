@@ -1,38 +1,25 @@
 /**
- * The triple-dot control on each card: switch direction, reconfigure, remove.
+ * The triple-dot control on each card: reconfigure, remove.
  *
  * It opens a modal sheet rather than a dropdown. A dropdown anchored inside the
  * card is clipped by the card's own rounded overflow and, on a phone, by the
- * viewport: the direction list is exactly the part that gets cut off. The sheet
- * renders into <body>, so it is bounded by the screen and scrolls on its own.
- *
- * Direction lives here because it is the setting you change most often, and the
- * options are derived from the stop pairs rather than hard-coded — a station
- * with two platforms offers both plus 'Both directions'.
+ * viewport. The sheet renders into <body>, so it is bounded by the screen and
+ * scrolls on its own.
  */
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Card } from '../../shared/types.ts'
 
-export type DirectionChoice = {
-  /** null means both directions. */
-  direction: string | null
-  label: string
-  stopIds: string[]
-}
-
 type Props = {
   card: Card
   subtitle: string
-  choices: DirectionChoice[]
-  onChangeDirection: (choice: DirectionChoice) => void
   onReconfigure: () => void
   onRemove: () => void
 }
 
 export function CardMenu({
-  card, subtitle, choices, onChangeDirection, onReconfigure, onRemove,
+  card, subtitle, onReconfigure, onRemove,
 }: Props) {
   const [open, setOpen] = useState(false)
 
@@ -53,9 +40,7 @@ export function CardMenu({
         <CardSheet
           card={card}
           subtitle={subtitle}
-          choices={choices}
           onClose={() => setOpen(false)}
-          onChangeDirection={onChangeDirection}
           onReconfigure={onReconfigure}
           onRemove={onRemove}
         />
@@ -65,7 +50,7 @@ export function CardMenu({
 }
 
 function CardSheet({
-  card, subtitle, choices, onClose, onChangeDirection, onReconfigure, onRemove,
+  card, subtitle, onClose, onReconfigure, onRemove,
 }: Props & { onClose: () => void }) {
   const titleId = useId()
   const sheet = useRef<HTMLDivElement>(null)
@@ -98,27 +83,6 @@ function CardSheet({
       >
         <h2 id={titleId}>{card.title}</h2>
         <p className="dialog-hint">{subtitle}</p>
-
-        {choices.length > 0 && (
-          <>
-            <div className="menu-label" id={`${titleId}-direction`}>Direction</div>
-            <div role="radiogroup" aria-labelledby={`${titleId}-direction`}>
-              {choices.map((choice) => (
-                <SheetItem
-                  key={choice.label}
-                  checked={card.direction === choice.direction}
-                  onSelect={() => {
-                    onChangeDirection(choice)
-                    onClose()
-                  }}
-                >
-                  {choice.label}
-                </SheetItem>
-              ))}
-            </div>
-            <div className="menu-sep" />
-          </>
-        )}
 
         <SheetItem onSelect={() => { onReconfigure(); onClose() }}>
           Change route or stop…

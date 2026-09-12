@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Card, Station } from '../../shared/types.ts'
-import { directionOptions } from '../../shared/directions.ts'
+import type { Card } from '../../shared/types.ts'
 import { api } from '../api.ts'
 import { useDepartures } from '../hooks/useDepartures.ts'
 import type { ConfigState } from '../hooks/useConfig.ts'
 import { DepartureCard } from '../components/DepartureCard.tsx'
-import type { DirectionChoice } from '../components/CardMenu.tsx'
 import { AddCardDialog } from '../components/AddCardDialog.tsx'
 
 export function Dashboard({ configState }: { configState: ConfigState }) {
@@ -14,7 +12,6 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
   const { data, error, loading, updatedAt, isStale, refresh } = useDepartures(cards.length > 0)
   const [editing, setEditing] = useState<Card | null>(null)
   const [adding, setAdding] = useState(false)
-  const [stations, setStations] = useState<Station[]>([])
   // Re-renders countdowns between polls.
   const [now, setNow] = useState(() => new Date())
 
@@ -23,34 +20,7 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
     return () => window.clearInterval(timer)
   }, [])
 
-  // The direction menu needs the stop pairs, which only the station list knows.
-  useEffect(() => {
-    if (!cards.some((card) => card.kind === 'train')) return
-    api.stations().then((catalog) => setStations(catalog.stations)).catch(() => setStations([]))
-  }, [cards.length])
-
   const byCardId = useMemo(() => new Map(data.map((entry) => [entry.cardId, entry])), [data])
-
-  function directionChoices(card: Card): DirectionChoice[] {
-    if (card.kind === 'bus') {
-      // A bus stop id is one side of the street, so there is no second stop to
-      // offer here; direction changes go through the full picker instead.
-      return card.direction ? [{ direction: card.direction, label: card.direction, stopIds: card.stopIds }] : []
-    }
-    const stops = stations
-      .find((station) => station.mapId === card.stationId)
-      ?.stops.filter((stop) => stop.lines.includes(card.route)) ?? []
-    if (stops.length === 0) return []
-    const options = directionOptions(stops)
-    return [
-      ...options.map((option) => ({
-        direction: option.label,
-        label: option.label,
-        stopIds: option.stopIds,
-      })),
-      { direction: null, label: 'Both directions', stopIds: stops.map((stop) => stop.stopId) },
-    ]
-  }
 
   async function saveCard(card: Card) {
     await update((current) => ({
@@ -117,10 +87,6 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
               limit={config.display.departuresPerCard}
               now={now}
               stale={isStale}
-              directionChoices={directionChoices(card)}
-              onChangeDirection={(choice) =>
-                void saveCard({ ...card, direction: choice.direction, stopIds: choice.stopIds })
-              }
               onReconfigure={() => setEditing(card)}
               onRemove={() => void removeCard(card.id)}
             />

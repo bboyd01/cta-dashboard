@@ -2,7 +2,7 @@ import type { Card, CardDepartures, TimeFormat } from '../../shared/types.ts'
 import { accentFor } from '../../shared/lines.ts'
 import { formatDeparture } from '../../shared/format.ts'
 import { LineIcon } from './LineIcon.tsx'
-import { CardMenu, type DirectionChoice } from './CardMenu.tsx'
+import { CardMenu } from './CardMenu.tsx'
 
 type Props = {
   card: Card
@@ -11,15 +11,12 @@ type Props = {
   limit: number
   now: Date
   stale: boolean
-  directionChoices: DirectionChoice[]
-  onChangeDirection: (choice: DirectionChoice) => void
   onReconfigure: () => void
   onRemove: () => void
 }
 
 export function DepartureCard({
-  card, result, timeFormat, limit, now, stale, directionChoices,
-  onChangeDirection, onReconfigure, onRemove,
+  card, result, timeFormat, limit, now, stale, onReconfigure, onRemove,
 }: Props) {
   const accent = accentFor(card.route)
   const departures = (result?.departures ?? []).slice(0, limit)
@@ -45,8 +42,6 @@ export function DepartureCard({
         <CardMenu
           card={card}
           subtitle={`${where} · ${direction}`}
-          choices={directionChoices}
-          onChangeDirection={onChangeDirection}
           onReconfigure={onReconfigure}
           onRemove={onRemove}
         />
