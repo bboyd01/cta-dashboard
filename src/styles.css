@@ -470,15 +470,17 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     --card-font-sm: 0.99rem;
   }
 
-  /* No horizontal padding to spare — every bit of width goes to the text. */
+  /* Half the usual horizontal padding — little to spare, but text touching the
+     card edge reads worse than a slightly narrower gap. The gap between cards
+     (the grid gap) is untouched. */
   .grid[data-mobile-columns='2'] .card-head,
-  .grid[data-mobile-columns='auto'] .card-head { padding-left: 0; padding-right: 0; }
+  .grid[data-mobile-columns='auto'] .card-head { padding-left: 7px; padding-right: 6px; }
   .grid[data-mobile-columns='2'] .card-subtitle,
-  .grid[data-mobile-columns='auto'] .card-subtitle,
+  .grid[data-mobile-columns='auto'] .card-subtitle { padding-left: 7px; padding-right: 6px; }
   .grid[data-mobile-columns='2'] .departures,
   .grid[data-mobile-columns='auto'] .departures,
   .grid[data-mobile-columns='2'] .card-empty,
-  .grid[data-mobile-columns='auto'] .card-empty { padding-left: 0; padding-right: 0; }
+  .grid[data-mobile-columns='auto'] .card-empty { padding-left: 7px; padding-right: 7px; }
 
   .grid[data-mobile-columns='2'] .card-title,
   .grid[data-mobile-columns='auto'] .card-title {
@@ -543,10 +545,10 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     --card-font-sm: 0.99rem;
   }
 
-  .grid[data-mobile-columns='2'] .card-head { padding-left: 0; padding-right: 0; }
-  .grid[data-mobile-columns='2'] .card-subtitle,
+  .grid[data-mobile-columns='2'] .card-head { padding-left: 7px; padding-right: 6px; }
+  .grid[data-mobile-columns='2'] .card-subtitle { padding-left: 7px; padding-right: 6px; }
   .grid[data-mobile-columns='2'] .departures,
-  .grid[data-mobile-columns='2'] .card-empty { padding-left: 0; padding-right: 0; }
+  .grid[data-mobile-columns='2'] .card-empty { padding-left: 7px; padding-right: 7px; }
 
   .grid[data-mobile-columns='2'] .card-title {
     overflow: hidden;
