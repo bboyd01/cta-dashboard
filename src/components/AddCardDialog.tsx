@@ -13,6 +13,7 @@ import { LINES, type LineId } from '../../shared/lines.ts'
 import { directionOptions } from '../../shared/directions.ts'
 import { api, type LineSummary } from '../api.ts'
 import { Combobox } from './Combobox.tsx'
+import { newId } from '../lib/id.ts'
 
 type Props = {
   /** Present when editing an existing card. */
@@ -22,10 +23,6 @@ type Props = {
 }
 
 const BOTH = '__both__'
-
-function newId(): string {
-  return `card_${Math.random().toString(36).slice(2, 10)}`
-}
 
 export function AddCardDialog({ existing, onCancel, onSave }: Props) {
   const [kind, setKind] = useState<'train' | 'bus'>(existing?.kind ?? 'train')
@@ -143,7 +140,7 @@ function TrainPicker({ existing, onCancel, onSave }: Props) {
     const chosen = direction === BOTH ? stops : stops.filter((stop) => stop.label === direction)
     if (chosen.length === 0) return
     onSave({
-      id: existing?.id ?? newId(),
+      id: existing?.id ?? newId('card'),
       kind: 'train',
       route: line,
       title: LINES[line].name,
@@ -273,7 +270,7 @@ function BusPicker({ existing, onCancel, onSave }: Props) {
     const name = routes.find((r) => r.route === route)?.name ?? route
     if (!stop) return
     onSave({
-      id: existing?.id ?? newId(),
+      id: existing?.id ?? newId('card'),
       kind: 'bus',
       route,
       title: `#${route} ${name}`,

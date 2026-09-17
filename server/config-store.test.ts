@@ -69,6 +69,70 @@ describe('sanitizeConfig', () => {
     })
     expect(result.digests[0].cardIds).toEqual(['a'])
   })
+
+  it('migrates a pre-groups config into one default "All" group', () => {
+    const result = sanitizeConfig({ cards: [card('a'), card('b')] })
+    expect(result.groups).toHaveLength(1)
+    expect(result.groups[0].name).toBe('All')
+    expect(result.groups[0].cardIds).toEqual(['a', 'b'])
+  })
+
+  it('migrates a pre-groups config with no cards into zero groups', () => {
+    const result = sanitizeConfig({})
+    expect(result.groups).toEqual([])
+  })
+
+  it('drops group references to cards that no longer exist', () => {
+    const result = sanitizeConfig({
+      cards: [card('a')],
+      groups: [{ id: 'g1', name: 'G1', cardIds: ['a', 'deleted'], timeWindows: [] }],
+    })
+    expect(result.groups[0].cardIds).toEqual(['a'])
+  })
+
+  it('deletes a card once it is orphaned from every group', () => {
+    const result = sanitizeConfig({
+      cards: [card('a'), card('b')],
+      groups: [{ id: 'g1', name: 'G1', cardIds: ['a'], timeWindows: [] }],
+    })
+    expect(result.cards.map((c) => c.id)).toEqual(['a'])
+  })
+
+  it('drops malformed time windows', () => {
+    const result = sanitizeConfig({
+      cards: [card('a')],
+      groups: [
+        {
+          id: 'g1',
+          name: 'G1',
+          cardIds: ['a'],
+          timeWindows: [
+            { id: 'w1', start: '06:00', end: '09:00' },
+            { id: 'w2', start: '10:00', end: '10:00' },
+            { id: 'w3', start: 'noon', end: '13:00' },
+            { id: 'w4' },
+          ],
+        },
+      ],
+    })
+    expect(result.groups[0].timeWindows).toEqual([{ id: 'w1', start: '06:00', end: '09:00' }])
+  })
+
+  it('sanitizes lastSelectedGroupId against the final group list', () => {
+    const valid = sanitizeConfig({
+      cards: [card('a')],
+      groups: [{ id: 'g1', name: 'G1', cardIds: ['a'], timeWindows: [] }],
+      lastSelectedGroupId: 'g1',
+    })
+    expect(valid.lastSelectedGroupId).toBe('g1')
+
+    const stale = sanitizeConfig({
+      cards: [card('a')],
+      groups: [{ id: 'g1', name: 'G1', cardIds: ['a'], timeWindows: [] }],
+      lastSelectedGroupId: 'gone',
+    })
+    expect(stale.lastSelectedGroupId).toBeNull()
+  })
 })
 
 describe('ConfigStore', () => {

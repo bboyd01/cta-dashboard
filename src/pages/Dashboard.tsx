@@ -1,19 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Card } from '../../shared/types.ts'
-import { api } from '../api.ts'
+import type { Card, Group } from '../../shared/types.ts'
+import { initialActiveGroupId, rulesActiveGroupId } from '../../shared/groups.ts'
 import { useDepartures } from '../hooks/useDepartures.ts'
 import type { ConfigState } from '../hooks/useConfig.ts'
 import { DepartureCard } from '../components/DepartureCard.tsx'
 import { AddCardDialog } from '../components/AddCardDialog.tsx'
+import { GroupBar } from '../components/GroupBar.tsx'
+import { GroupMenu } from '../components/GroupMenu.tsx'
+import { GroupDialog } from '../components/GroupDialog.tsx'
 
 export function Dashboard({ configState }: { configState: ConfigState }) {
   const { config, update } = configState
-  const cards = config?.cards ?? []
-  const { data, error, loading, updatedAt, isStale, refresh } = useDepartures(cards.length > 0)
+  const groups = config?.groups ?? []
   const [editing, setEditing] = useState<Card | null>(null)
   const [adding, setAdding] = useState(false)
-  // Re-renders countdowns between polls.
+  const [menuGroup, setMenuGroup] = useState<Group | null>(null)
+  const [groupDialog, setGroupDialog] = useState<{ mode: 'create' } | { mode: 'edit'; group: Group } | null>(null)
+  // Re-renders countdowns between polls, and doubles as the group time-rule tick.
   const [now, setNow] = useState(() => new Date())
+
+  // Which group is currently viewed. Initialized once config loads, then kept in
+  // sync with an edge-triggered check against rulesActiveGroupId on every tick.
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const initializedRef = useRef(false)
+  const prevRulesActiveRef = useRef<string | null>(null)
+
+  const activeGroup = groups.find((g) => g.id === activeGroupId) ?? null
+  const cards = useMemo(
+    () => (activeGroup ? (config?.cards.filter((c) => activeGroup.cardIds.includes(c.id)) ?? []) : []),
+    [config, activeGroup],
+  )
+  const { data, error, loading, updatedAt, isStale, refresh } = useDepartures(cards.length > 0)
 
   // Drag state
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -25,14 +42,84 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
     return () => window.clearInterval(timer)
   }, [])
 
+  // One-time initialization once config first loads.
+  useEffect(() => {
+    if (initializedRef.current || !config) return
+    initializedRef.current = true
+    const initial = initialActiveGroupId(config.groups, config.lastSelectedGroupId, now)
+    setActiveGroupId(initial)
+    prevRulesActiveRef.current = rulesActiveGroupId(config.groups, now)
+    // Deliberately only depends on config: this should fire once, on load.
+  }, [config])
+
+  // Edge-triggered auto-switch: only reacts when the rules-active group actually
+  // changes, so it never fights a manual selection made mid-window.
+  useEffect(() => {
+    if (!initializedRef.current || !config) return
+    const rulesId = rulesActiveGroupId(groups, now)
+    if (rulesId === prevRulesActiveRef.current) return
+    prevRulesActiveRef.current = rulesId
+    const next =
+      rulesId ??
+      (config.lastSelectedGroupId && groups.some((g) => g.id === config.lastSelectedGroupId)
+        ? config.lastSelectedGroupId
+        : (groups[0]?.id ?? null))
+    setActiveGroupId(next)
+  }, [now, groups])
+
   const byCardId = useMemo(() => new Map(data.map((entry) => [entry.cardId, entry])), [data])
 
+  function selectGroup(id: string) {
+    setActiveGroupId(id)
+    void update((current) => ({ ...current, lastSelectedGroupId: id }))
+  }
+
+  async function saveGroup(group: Group) {
+    const isNew = !groups.some((g) => g.id === group.id)
+    await update((current) => ({
+      ...current,
+      groups: current.groups.some((g) => g.id === group.id)
+        ? current.groups.map((g) => (g.id === group.id ? group : g))
+        : [...current.groups, group],
+      ...(isNew ? { lastSelectedGroupId: group.id } : {}),
+    }))
+    if (isNew) setActiveGroupId(group.id)
+    setGroupDialog(null)
+  }
+
+  async function removeGroup(id: string) {
+    await update((current) => {
+      const nextGroups = current.groups.filter((g) => g.id !== id)
+      const referenced = new Set(nextGroups.flatMap((g) => g.cardIds))
+      return {
+        ...current,
+        groups: nextGroups,
+        cards: current.cards.filter((c) => referenced.has(c.id)),
+        digests: current.digests.map((rule) => ({
+          ...rule,
+          cardIds: rule.cardIds.filter((cardId) => referenced.has(cardId)),
+        })),
+        lastSelectedGroupId: current.lastSelectedGroupId === id ? null : current.lastSelectedGroupId,
+      }
+    })
+    if (activeGroupId === id) {
+      setActiveGroupId(groups.find((g) => g.id !== id)?.id ?? null)
+    }
+  }
+
   async function saveCard(card: Card) {
+    const isNew = !config?.cards.some((existing) => existing.id === card.id)
     await update((current) => ({
       ...current,
       cards: current.cards.some((existing) => existing.id === card.id)
         ? current.cards.map((existing) => (existing.id === card.id ? card : existing))
         : [...current.cards, card],
+      groups:
+        isNew && activeGroupId
+          ? current.groups.map((g) =>
+              g.id === activeGroupId ? { ...g, cardIds: [...g.cardIds, card.id] } : g,
+            )
+          : current.groups,
     }))
     setAdding(false)
     setEditing(null)
@@ -40,15 +127,24 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
   }
 
   async function removeCard(id: string) {
-    await update((current) => ({
-      ...current,
-      cards: current.cards.filter((card) => card.id !== id),
-      // Keep digests consistent so a rule cannot point at a card that is gone.
-      digests: current.digests.map((rule) => ({
-        ...rule,
-        cardIds: rule.cardIds.filter((cardId) => cardId !== id),
-      })),
-    }))
+    await update((current) => {
+      const nextGroups = current.groups.map((g) =>
+        g.id === activeGroupId ? { ...g, cardIds: g.cardIds.filter((cardId) => cardId !== id) } : g,
+      )
+      const stillReferenced = nextGroups.some((g) => g.cardIds.includes(id))
+      return {
+        ...current,
+        groups: nextGroups,
+        cards: stillReferenced ? current.cards : current.cards.filter((card) => card.id !== id),
+        // Keep digests consistent so a rule cannot point at a card that is gone.
+        digests: stillReferenced
+          ? current.digests
+          : current.digests.map((rule) => ({
+              ...rule,
+              cardIds: rule.cardIds.filter((cardId) => cardId !== id),
+            })),
+      }
+    })
   }
 
   function startDrag(id: string) {
@@ -112,14 +208,35 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
               : ''}
         </span>
         <button type="button" className="btn" onClick={refresh}>Refresh</button>
-        <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!activeGroup}
+          onClick={() => setAdding(true)}
+        >
           Add card
         </button>
       </div>
 
+      <GroupBar
+        groups={groups}
+        activeGroupId={activeGroupId}
+        onSelect={selectGroup}
+        onAddGroup={() => setGroupDialog({ mode: 'create' })}
+        onManageGroup={(group) => setMenuGroup(group)}
+      />
+
       {error && <p className="banner banner-error">{error}</p>}
 
-      {cards.length === 0 ? (
+      {groups.length === 0 ? (
+        <div className="empty">
+          <h2>No groups yet</h2>
+          <p>Add a group to start tracking departures.</p>
+          <button type="button" className="btn btn-primary" onClick={() => setGroupDialog({ mode: 'create' })}>
+            Add your first group
+          </button>
+        </div>
+      ) : cards.length === 0 ? (
         <div className="empty">
           <h2>No cards yet</h2>
           <p>Add a train or bus card to start tracking departures.</p>
@@ -153,6 +270,23 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
           existing={editing ?? undefined}
           onCancel={() => { setAdding(false); setEditing(null) }}
           onSave={(card) => void saveCard(card)}
+        />
+      )}
+
+      {menuGroup && (
+        <GroupMenu
+          group={menuGroup}
+          onClose={() => setMenuGroup(null)}
+          onEdit={() => setGroupDialog({ mode: 'edit', group: menuGroup })}
+          onDelete={() => void removeGroup(menuGroup.id)}
+        />
+      )}
+
+      {groupDialog && (
+        <GroupDialog
+          existing={groupDialog.mode === 'edit' ? groupDialog.group : undefined}
+          onCancel={() => setGroupDialog(null)}
+          onSave={(group) => void saveGroup(group)}
         />
       )}
     </>
