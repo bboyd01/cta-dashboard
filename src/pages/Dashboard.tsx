@@ -57,12 +57,19 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
     dragRef.current = { draggingId: id, overId: id }
 
     function onPointerMove(e: PointerEvent) {
-      const el = document.elementFromPoint(e.clientX, e.clientY)
-      const cardEl = el?.closest('[data-card-id]')
-      const cardId = cardEl?.getAttribute('data-card-id')
-      if (cardId && cardId !== dragRef.current.overId) {
-        dragRef.current.overId = cardId
-        setOverId(cardId)
+      // elementFromPoint returns the dragging card even with pointer-events:none,
+      // so we check bounding rects of all cards directly and skip the drag source.
+      for (const cardEl of document.querySelectorAll('[data-card-id]')) {
+        const cardId = cardEl.getAttribute('data-card-id')
+        if (!cardId || cardId === dragRef.current.draggingId) continue
+        const { left, right, top, bottom } = cardEl.getBoundingClientRect()
+        if (e.clientX >= left && e.clientX <= right && e.clientY >= top && e.clientY <= bottom) {
+          if (cardId !== dragRef.current.overId) {
+            dragRef.current.overId = cardId
+            setOverId(cardId)
+          }
+          return
+        }
       }
     }
 
