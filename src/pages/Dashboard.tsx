@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Card } from '../../shared/types.ts'
 import { api } from '../api.ts'
 import { useDepartures } from '../hooks/useDepartures.ts'
@@ -14,6 +14,11 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
   const [adding, setAdding] = useState(false)
   // Re-renders countdowns between polls.
   const [now, setNow] = useState(() => new Date())
+
+  // Drag state
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const dragRef = useRef({ draggingId: null as string | null, overId: null as string | null })
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 10_000)
@@ -44,6 +49,45 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
         cardIds: rule.cardIds.filter((cardId) => cardId !== id),
       })),
     }))
+  }
+
+  function startDrag(id: string) {
+    setDraggingId(id)
+    setOverId(id)
+    dragRef.current = { draggingId: id, overId: id }
+
+    function onPointerMove(e: PointerEvent) {
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const cardEl = el?.closest('[data-card-id]')
+      const cardId = cardEl?.getAttribute('data-card-id')
+      if (cardId && cardId !== dragRef.current.overId) {
+        dragRef.current.overId = cardId
+        setOverId(cardId)
+      }
+    }
+
+    function onPointerUp() {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      const { draggingId: fromId, overId: toId } = dragRef.current
+      setDraggingId(null)
+      setOverId(null)
+      dragRef.current = { draggingId: null, overId: null }
+      if (fromId && toId && fromId !== toId) {
+        void update((current) => {
+          const arr = [...current.cards]
+          const from = arr.findIndex((c) => c.id === fromId)
+          const to = arr.findIndex((c) => c.id === toId)
+          if (from === -1 || to === -1) return current
+          const [card] = arr.splice(from, 1)
+          arr.splice(to, 0, card)
+          return { ...current, cards: arr }
+        })
+      }
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
   }
 
   if (!config) return <p className="banner">Loading…</p>
@@ -77,7 +121,7 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
           </button>
         </div>
       ) : (
-        <div className="grid" data-columns={config.display.columns}>
+        <div className="grid" data-columns={config.display.columns} data-dragging={draggingId ? true : undefined}>
           {cards.map((card) => (
             <DepartureCard
               key={card.id}
@@ -87,6 +131,9 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
               limit={config.display.departuresPerCard}
               now={now}
               stale={isStale}
+              isDragging={draggingId === card.id}
+              isDropTarget={draggingId !== null && overId === card.id && draggingId !== card.id}
+              onDragStart={() => startDrag(card.id)}
               onReconfigure={() => setEditing(card)}
               onRemove={() => void removeCard(card.id)}
             />

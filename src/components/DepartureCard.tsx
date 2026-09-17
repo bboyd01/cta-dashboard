@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { Card, CardDepartures, TimeFormat } from '../../shared/types.ts'
 import { accentFor } from '../../shared/lines.ts'
 import { formatDeparture } from '../../shared/format.ts'
@@ -11,22 +12,71 @@ type Props = {
   limit: number
   now: Date
   stale: boolean
+  isDragging?: boolean
+  isDropTarget?: boolean
+  onDragStart?: () => void
   onReconfigure: () => void
   onRemove: () => void
 }
 
 export function DepartureCard({
-  card, result, timeFormat, limit, now, stale, onReconfigure, onRemove,
+  card, result, timeFormat, limit, now, stale,
+  isDragging, isDropTarget, onDragStart,
+  onReconfigure, onRemove,
 }: Props) {
   const accent = accentFor(card.route)
   const departures = (result?.departures ?? []).slice(0, limit)
   const where = card.stationName || card.stationId
   const direction = card.direction ?? 'Both directions'
 
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const startPos = useRef({ x: 0, y: 0 })
+  const pointerIdRef = useRef<number | null>(null)
+  const elementRef = useRef<HTMLElement | null>(null)
+
+  function handlePointerDown(e: React.PointerEvent<HTMLElement>) {
+    if (!onDragStart) return
+    pointerIdRef.current = e.pointerId
+    elementRef.current = e.currentTarget
+    startPos.current = { x: e.clientX, y: e.clientY }
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null
+      if (pointerIdRef.current !== null) {
+        elementRef.current?.releasePointerCapture(pointerIdRef.current)
+      }
+      onDragStart()
+    }, 500)
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!longPressTimer.current) return
+    const dx = e.clientX - startPos.current.x
+    const dy = e.clientY - startPos.current.y
+    if (Math.sqrt(dx * dx + dy * dy) > 10) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  function handlePointerUp() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
   return (
     <article
       className="card"
+      data-card-id={card.id}
       data-stale={stale}
+      data-dragging={isDragging || undefined}
+      data-drop-target={isDropTarget || undefined}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onContextMenu={(e) => { if (onDragStart) e.preventDefault() }}
       style={
         { '--card-accent': accent.color, '--card-on-accent': accent.onColor } as React.CSSProperties
       }

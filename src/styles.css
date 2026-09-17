@@ -218,9 +218,26 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  cursor: grab;
+  touch-action: none;
 }
 .card[data-stale='true'] { opacity: 0.55; }
+
+/* Drag states */
+.card[data-dragging='true'] {
+  opacity: 0.35;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+.card[data-drop-target='true'] {
+  box-shadow: 0 0 0 2px var(--card-accent), var(--shadow);
+  transform: scale(1.01);
+}
+.grid[data-dragging='true'] {
+  cursor: grabbing;
+  user-select: none;
+}
 
 /* The line color lives on the rule and the badge, never on text. */
 .card-rule { height: 4px; background: var(--card-accent); }
