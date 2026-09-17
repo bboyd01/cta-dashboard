@@ -136,11 +136,12 @@ export function DepartureCard({
                   {departure.isScheduled && (
                     <span className="departure-flag" data-kind="scheduled">sched</span>
                   )}
-                  {departure.isDelayed && (
-                    <span className="departure-flag" data-kind="delayed">delayed</span>
-                  )}
                 </span>
-                <span className="departure-time" data-due={time === 'Due'}>
+                <span
+                  className="departure-time"
+                  data-due={time === 'Due'}
+                  data-delayed={departure.isDelayed}
+                >
                   {time}
                 </span>
               </li>
