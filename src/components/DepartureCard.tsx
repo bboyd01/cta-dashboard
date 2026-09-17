@@ -37,15 +37,33 @@ export function DepartureCard({
   function handlePointerDown(e: React.PointerEvent<HTMLElement>) {
     if (!onDragStart) return
     pointerIdRef.current = e.pointerId
-    elementRef.current = e.currentTarget
+    const el = e.currentTarget
+    elementRef.current = el
     startPos.current = { x: e.clientX, y: e.clientY }
+
+    // Attach a non-passive touchmove listener immediately. Before the threshold
+    // it does nothing (scroll is allowed). Once the timer fires it prevents
+    // default on every touchmove, stopping the browser's scroll for this gesture.
+    let dragActive = false
+    function blockScroll(te: TouchEvent) {
+      if (dragActive) te.preventDefault()
+    }
+    el.addEventListener('touchmove', blockScroll, { passive: false })
+
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null
+      dragActive = true
       if (pointerIdRef.current !== null) {
-        elementRef.current?.releasePointerCapture(pointerIdRef.current)
+        el.releasePointerCapture(pointerIdRef.current)
       }
       onDragStart()
     }, 120)
+
+    function cleanup() {
+      el.removeEventListener('touchmove', blockScroll)
+    }
+    el.addEventListener('pointerup', cleanup, { once: true })
+    el.addEventListener('pointercancel', cleanup, { once: true })
   }
 
   function handlePointerMove(e: React.PointerEvent) {
