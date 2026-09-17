@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ColumnSetting, DigestRule, TimeFormat } from '../../shared/types.ts'
+import type { ColumnSetting, DigestRule, MobileColumnSetting, TimeFormat } from '../../shared/types.ts'
 import { api, type Health } from '../api.ts'
 import type { ConfigState } from '../hooks/useConfig.ts'
 
@@ -72,7 +72,7 @@ export function Options({ configState }: { configState: ConfigState }) {
 
         <div className="setting">
           <div>
-            <div className="setting-label">Columns</div>
+            <div className="setting-label">Columns (Desktop)</div>
             <div className="setting-hint">
               Auto fits the window. A fixed count is an upper bound — narrow screens still
               drop to fewer columns.
@@ -86,6 +86,29 @@ export function Options({ configState }: { configState: ConfigState }) {
                 className="choice"
                 aria-pressed={display.columns === value}
                 onClick={() => setDisplay({ columns: value })}
+              >
+                {value === 'auto' ? 'Auto' : value}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="setting">
+          <div>
+            <div className="setting-label">Columns (Mobile)</div>
+            <div className="setting-hint">
+              Applies below the mobile breakpoint, independent of the desktop setting.
+              2 columns uses a more compact card layout.
+            </div>
+          </div>
+          <div className="choice-row">
+            {(['auto', '1', '2'] as MobileColumnSetting[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                className="choice"
+                aria-pressed={display.mobileColumns === value}
+                onClick={() => setDisplay({ mobileColumns: value })}
               >
                 {value === 'auto' ? 'Auto' : value}
               </button>

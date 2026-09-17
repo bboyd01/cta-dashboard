@@ -20,12 +20,14 @@ import type {
   DigestRule,
   DisplayOptions,
   Group,
+  MobileColumnSetting,
   TimeFormat,
   TimeWindow,
 } from '../shared/types.ts'
 
 const TIME_FORMATS: TimeFormat[] = ['countdown', 'clock']
 const COLUMN_SETTINGS: ColumnSetting[] = ['auto', '1', '2', '3', '4']
+const MOBILE_COLUMN_SETTINGS: MobileColumnSetting[] = ['auto', '1', '2']
 const CARD_KINDS: CardKind[] = ['train', 'bus']
 
 /**
@@ -50,7 +52,7 @@ export async function ensureDataDir(dir: string): Promise<void> {
 export function defaultConfig(): Config {
   return {
     cards: [],
-    display: { timeFormat: 'countdown', columns: 'auto', departuresPerCard: 3 },
+    display: { timeFormat: 'countdown', columns: 'auto', mobileColumns: 'auto', departuresPerCard: 3 },
     digests: [],
     groups: [],
     lastSelectedGroupId: null,
@@ -149,6 +151,7 @@ function sanitizeDisplay(raw: unknown): DisplayOptions {
   return {
     timeFormat: oneOf(raw.timeFormat, TIME_FORMATS, base.timeFormat),
     columns: oneOf(raw.columns, COLUMN_SETTINGS, base.columns),
+    mobileColumns: oneOf(raw.mobileColumns, MOBILE_COLUMN_SETTINGS, base.mobileColumns),
     departuresPerCard: int(raw.departuresPerCard, base.departuresPerCard, 1, 6),
   }
 }

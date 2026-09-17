@@ -50,6 +50,15 @@ describe('sanitizeConfig', () => {
     expect(result.display.columns).toBe('auto')
   })
 
+  it('sanitizes mobileColumns independently of columns, rejecting values desktop-only allows', () => {
+    const result = sanitizeConfig({ display: { columns: '4', mobileColumns: '4' } })
+    expect(result.display.columns).toBe('4')
+    expect(result.display.mobileColumns).toBe('auto')
+
+    const valid = sanitizeConfig({ display: { mobileColumns: '2' } })
+    expect(valid.display.mobileColumns).toBe('2')
+  })
+
   it('rejects a malformed digest time', () => {
     const result = sanitizeConfig({
       digests: [{ id: 'd1', time: 'half six', windowMinutes: 30 }],

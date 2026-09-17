@@ -46,10 +46,14 @@ export type CardDepartures = {
 
 export type TimeFormat = 'countdown' | 'clock'
 export type ColumnSetting = 'auto' | '1' | '2' | '3' | '4'
+export type MobileColumnSetting = 'auto' | '1' | '2'
 
 export type DisplayOptions = {
   timeFormat: TimeFormat
+  /** Column count at desktop widths. */
   columns: ColumnSetting
+  /** Column count below the mobile breakpoint; independent of `columns`. */
+  mobileColumns: MobileColumnSetting
   departuresPerCard: number
 }
 

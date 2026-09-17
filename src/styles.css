@@ -237,20 +237,19 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .grid[data-columns='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 /* Fixed column counts are an upper bound, not a floor: never force 4 narrow
-   columns onto a phone just because the preference says 4. Card text is one
-   large size now, so a phone gets a single column rather than two cramped ones. */
+   columns onto a phone just because the preference says 4. */
 @media (max-width: 1100px) {
   .grid[data-columns='4'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Below the mobile breakpoint, Columns (Mobile) is the only thing in control —
+   it replaces the desktop `data-columns` value entirely rather than clamping it. */
 @media (max-width: 820px) {
-  .grid[data-columns='3'],
-  .grid[data-columns='4'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 560px) {
-  .grid,
-  .grid[data-columns='2'],
-  .grid[data-columns='3'],
-  .grid[data-columns='4'] { grid-template-columns: 1fr; }
+  .grid[data-mobile-columns='1'] { grid-template-columns: 1fr; }
+  .grid[data-mobile-columns='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid[data-mobile-columns='auto'] {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+  }
 }
 
 /* ---- departure card ---- */
@@ -414,11 +413,11 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 .card-empty[data-error='true'] { color: var(--danger); }
 
-/* Two columns below ~520px leaves very little width per card, so tighten the
-   chrome rather than let the content wrap raggedly. */
-/* Several columns on a narrow screen leaves little width per card. The cards
-   keep one type size — just a smaller one — rather than reintroducing a mix. */
-@media (max-width: 900px) {
+/* Several columns on a narrow-ish desktop/tablet window leave little width per
+   card, so tighten the chrome rather than let the content wrap raggedly. Scoped
+   above the mobile breakpoint — below it, the dedicated mobile 2-column
+   treatment further down takes over instead. */
+@media (min-width: 821px) and (max-width: 900px) {
   .grid[data-columns='2'] .card,
   .grid[data-columns='3'] .card,
   .grid[data-columns='4'] .card {
@@ -445,6 +444,95 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .grid[data-columns='2'] .departure-flag,
   .grid[data-columns='3'] .departure-flag,
   .grid[data-columns='4'] .departure-flag {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    font-size: 0;
+    letter-spacing: 0;
+    align-self: center;
+  }
+}
+
+/* ---- mobile 2-column cards ----
+ * Two rendered mobile columns leave very little width per card: every part
+ * shrinks by 17% off the base sizes, the direction drops to its own line
+ * under the station/stop name, and anything that still doesn't fit is cut off
+ * with an ellipsis rather than wrapping or overflowing. This applies whenever
+ * two columns actually render on mobile — an explicit "2" always qualifies;
+ * "auto" only once the viewport is wide enough for auto-fill to actually
+ * produce a second column (2 x the 290px card minimum, plus the grid gap). */
+@media (min-width: 626px) and (max-width: 820px) {
+  .grid[data-mobile-columns='2'] .card,
+  .grid[data-mobile-columns='auto'] .card {
+    --card-font: 1.12rem;
+    --card-font-lg: 1.34rem;
+    --card-font-sm: 0.99rem;
+  }
+
+  .grid[data-mobile-columns='2'] .card-title,
+  .grid[data-mobile-columns='auto'] .card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Direction moves under the station/stop name instead of sharing its line. */
+  .grid[data-mobile-columns='2'] .card-subtitle,
+  .grid[data-mobile-columns='auto'] .card-subtitle {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .grid[data-mobile-columns='2'] .card-sep,
+  .grid[data-mobile-columns='auto'] .card-sep { display: none; }
+  .grid[data-mobile-columns='2'] .card-where,
+  .grid[data-mobile-columns='auto'] .card-where {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .grid[data-mobile-columns='2'] .card-direction,
+  .grid[data-mobile-columns='auto'] .card-direction { max-width: 100%; }
+
+  .grid[data-mobile-columns='2'] .departure-flag,
+  .grid[data-mobile-columns='auto'] .departure-flag {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    font-size: 0;
+    letter-spacing: 0;
+    align-self: center;
+  }
+}
+
+/* A phone narrow enough that "auto" would fall back to one column anyway still
+   gets the compact treatment when the user explicitly asked for 2. */
+@media (max-width: 625px) {
+  .grid[data-mobile-columns='2'] .card {
+    --card-font: 1.12rem;
+    --card-font-lg: 1.34rem;
+    --card-font-sm: 0.99rem;
+  }
+  .grid[data-mobile-columns='2'] .card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .grid[data-mobile-columns='2'] .card-subtitle {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .grid[data-mobile-columns='2'] .card-sep { display: none; }
+  .grid[data-mobile-columns='2'] .card-where {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .grid[data-mobile-columns='2'] .card-direction { max-width: 100%; }
+  .grid[data-mobile-columns='2'] .departure-flag {
     width: 8px;
     height: 8px;
     border-radius: 50%;
