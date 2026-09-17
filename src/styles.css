@@ -342,6 +342,8 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* The next arrival no longer wins on size, so it wins on weight. */
 .departure:first-child .departure-time { font-weight: 750; }
 .departure-time[data-due='true'] { color: var(--accent); }
+/* A delay is a warning, so it outranks the "due now" accent color. */
+.departure-time[data-delayed='true'] { color: var(--danger); }
 
 .departure-flag {
   flex: none;
@@ -349,10 +351,8 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  /* A scheduled estimate is information, not a problem; only delay is a warning. */
   color: var(--text-faint);
 }
-.departure-flag[data-kind='delayed'] { color: var(--danger); }
 
 .card-empty {
   padding: 6px 14px 16px;
