@@ -45,7 +45,7 @@ export function DepartureCard({
         elementRef.current?.releasePointerCapture(pointerIdRef.current)
       }
       onDragStart()
-    }, 500)
+    }, 120)
   }
 
   function handlePointerMove(e: React.PointerEvent) {
