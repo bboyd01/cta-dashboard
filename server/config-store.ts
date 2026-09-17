@@ -19,7 +19,9 @@ import type {
   ColumnSetting,
   DigestRule,
   DisplayOptions,
+  Group,
   TimeFormat,
+  TimeWindow,
 } from '../shared/types.ts'
 
 const TIME_FORMATS: TimeFormat[] = ['countdown', 'clock']
@@ -50,6 +52,8 @@ export function defaultConfig(): Config {
     cards: [],
     display: { timeFormat: 'countdown', columns: 'auto', departuresPerCard: 3 },
     digests: [],
+    groups: [],
+    lastSelectedGroupId: null,
   }
 }
 
@@ -114,6 +118,31 @@ function sanitizeDigest(raw: unknown): DigestRule | null {
   }
 }
 
+function sanitizeTimeWindow(raw: unknown): TimeWindow | null {
+  if (!isRecord(raw)) return null
+  const id = str(raw.id)
+  if (!id) return null
+  const start = str(raw.start)
+  const end = str(raw.end)
+  if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return null
+  if (start >= end) return null
+  return { id, start, end }
+}
+
+function sanitizeGroup(raw: unknown, cardIds: Set<string>): Group | null {
+  if (!isRecord(raw)) return null
+  const id = str(raw.id)
+  if (!id) return null
+  return {
+    id,
+    name: str(raw.name, 'Group'),
+    cardIds: strArray(raw.cardIds).filter((cid) => cardIds.has(cid)),
+    timeWindows: Array.isArray(raw.timeWindows)
+      ? raw.timeWindows.map(sanitizeTimeWindow).filter((w): w is TimeWindow => w !== null)
+      : [],
+  }
+}
+
 function sanitizeDisplay(raw: unknown): DisplayOptions {
   const base = defaultConfig().display
   if (!isRecord(raw)) return base
@@ -126,10 +155,34 @@ function sanitizeDisplay(raw: unknown): DisplayOptions {
 
 export function sanitizeConfig(raw: unknown): Config {
   if (!isRecord(raw)) return defaultConfig()
-  const cards = Array.isArray(raw.cards)
+  let cards = Array.isArray(raw.cards)
     ? raw.cards.map(sanitizeCard).filter((c): c is Card => c !== null)
     : []
-  const cardIds = new Set(cards.map((c) => c.id))
+  let cardIds = new Set(cards.map((c) => c.id))
+
+  let groups: Group[]
+  if (!Array.isArray(raw.groups)) {
+    // Pre-groups config: migrate every existing card into one default group
+    // rather than losing it, so nothing disappears from the dashboard.
+    groups =
+      cards.length > 0
+        ? [{ id: 'group_all', name: 'All', cardIds: cards.map((c) => c.id), timeWindows: [] }]
+        : []
+  } else {
+    groups = raw.groups
+      .map((g) => sanitizeGroup(g, cardIds))
+      .filter((g): g is Group => g !== null)
+  }
+
+  // A card no longer referenced by any group is orphaned and gets dropped -- but
+  // only once groups actually exist, so a config mid-migration never gets wiped.
+  if (groups.length > 0) {
+    const referenced = new Set(groups.flatMap((g) => g.cardIds))
+    cards = cards.filter((c) => referenced.has(c.id))
+    cardIds = new Set(cards.map((c) => c.id))
+    groups = groups.map((g) => ({ ...g, cardIds: g.cardIds.filter((id) => cardIds.has(id)) }))
+  }
+
   const digests = Array.isArray(raw.digests)
     ? raw.digests
         .map(sanitizeDigest)
@@ -138,7 +191,13 @@ export function sanitizeConfig(raw: unknown): Config {
         // silently send a message about a deleted card.
         .map((d) => ({ ...d, cardIds: d.cardIds.filter((id) => cardIds.has(id)) }))
     : []
-  return { cards, display: sanitizeDisplay(raw.display), digests }
+
+  const lastSelectedGroupId =
+    typeof raw.lastSelectedGroupId === 'string' && groups.some((g) => g.id === raw.lastSelectedGroupId)
+      ? raw.lastSelectedGroupId
+      : null
+
+  return { cards, display: sanitizeDisplay(raw.display), digests, groups, lastSelectedGroupId }
 }
 
 export class ConfigStore {

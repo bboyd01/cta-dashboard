@@ -70,10 +70,30 @@ export type DigestRule = {
   lastSent?: string
 }
 
+/** A scheduled window that can auto-activate a group. Same-day only. */
+export type TimeWindow = {
+  id: string
+  /** 'HH:MM', 24-hour, America/Chicago. */
+  start: string
+  /** 'HH:MM', 24-hour, America/Chicago. Assumed to be after `start`. */
+  end: string
+}
+
+/** A named subset of cards, shown together and optionally auto-selected by time. */
+export type Group = {
+  id: string
+  name: string
+  cardIds: string[]
+  timeWindows: TimeWindow[]
+}
+
 export type Config = {
   cards: Card[]
   display: DisplayOptions
   digests: DigestRule[]
+  groups: Group[]
+  /** Last group the user manually viewed; falls back to the first group when unset. */
+  lastSelectedGroupId: string | null
 }
 
 /* ---- Catalog: reference data that drives the card picker ---- */
