@@ -245,7 +245,12 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
           </button>
         </div>
       ) : (
-        <div className="grid" data-columns={config.display.columns} data-dragging={draggingId ? true : undefined}>
+        <div
+          className="grid"
+          data-columns={config.display.columns}
+          data-mobile-columns={config.display.mobileColumns}
+          data-dragging={draggingId ? true : undefined}
+        >
           {cards.map((card) => (
             <DepartureCard
               key={card.id}

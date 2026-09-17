@@ -117,7 +117,7 @@ export function DepartureCard({
 
       <p className="card-subtitle">
         <span className="card-where">{where}</span>
-        <span aria-hidden="true">·</span>
+        <span className="card-sep" aria-hidden="true">·</span>
         <span className="card-direction">{direction}</span>
       </p>
 
