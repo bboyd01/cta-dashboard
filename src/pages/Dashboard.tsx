@@ -73,14 +73,9 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
       }
     }
 
-    function cleanup() {
+    function onPointerUp() {
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
-      window.removeEventListener('pointercancel', onPointerCancel)
-    }
-
-    function onPointerUp() {
-      cleanup()
       const { draggingId: fromId, overId: toId } = dragRef.current
       setDraggingId(null)
       setOverId(null)
@@ -98,16 +93,8 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
       }
     }
 
-    function onPointerCancel() {
-      cleanup()
-      setDraggingId(null)
-      setOverId(null)
-      dragRef.current = { draggingId: null, overId: null }
-    }
-
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
-    window.addEventListener('pointercancel', onPointerCancel)
   }
 
   if (!config) return <p className="banner">Loading…</p>
