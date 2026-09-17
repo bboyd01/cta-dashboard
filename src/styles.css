@@ -185,6 +185,12 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .group-bar-mobile { display: none; align-items: center; gap: 8px; }
 .group-bar-mobile .combobox-wrapper { flex: 1 1 auto; min-width: 0; }
+.group-bar-mobile .combobox-wrapper input { font-size: 0.85rem; }
+.group-bar-mobile .btn-primary {
+  flex: none;
+  white-space: nowrap;
+  padding: 7px 16px;
+}
 
 .group-chip {
   flex: none;
