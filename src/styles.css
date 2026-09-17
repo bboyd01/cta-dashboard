@@ -470,6 +470,16 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     --card-font-sm: 0.99rem;
   }
 
+  /* No horizontal padding to spare — every bit of width goes to the text. */
+  .grid[data-mobile-columns='2'] .card-head,
+  .grid[data-mobile-columns='auto'] .card-head { padding-left: 0; padding-right: 0; }
+  .grid[data-mobile-columns='2'] .card-subtitle,
+  .grid[data-mobile-columns='auto'] .card-subtitle,
+  .grid[data-mobile-columns='2'] .departures,
+  .grid[data-mobile-columns='auto'] .departures,
+  .grid[data-mobile-columns='2'] .card-empty,
+  .grid[data-mobile-columns='auto'] .card-empty { padding-left: 0; padding-right: 0; }
+
   .grid[data-mobile-columns='2'] .card-title,
   .grid[data-mobile-columns='auto'] .card-title {
     overflow: hidden;
@@ -505,6 +515,23 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     letter-spacing: 0;
     align-self: center;
   }
+
+  /* The heading has no room to spare for a button beside it, so the menu
+     trigger drops out of the header and floats at the bottom of the card. */
+  .grid[data-mobile-columns='2'] .card-head .btn-icon,
+  .grid[data-mobile-columns='auto'] .card-head .btn-icon {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    box-shadow: var(--shadow);
+  }
+  .grid[data-mobile-columns='2'] .departures,
+  .grid[data-mobile-columns='auto'] .departures,
+  .grid[data-mobile-columns='2'] .card-empty,
+  .grid[data-mobile-columns='auto'] .card-empty { padding-bottom: 38px; }
 }
 
 /* A phone narrow enough that "auto" would fall back to one column anyway still
@@ -515,6 +542,12 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     --card-font-lg: 1.34rem;
     --card-font-sm: 0.99rem;
   }
+
+  .grid[data-mobile-columns='2'] .card-head { padding-left: 0; padding-right: 0; }
+  .grid[data-mobile-columns='2'] .card-subtitle,
+  .grid[data-mobile-columns='2'] .departures,
+  .grid[data-mobile-columns='2'] .card-empty { padding-left: 0; padding-right: 0; }
+
   .grid[data-mobile-columns='2'] .card-title {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -541,6 +574,18 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     letter-spacing: 0;
     align-self: center;
   }
+
+  .grid[data-mobile-columns='2'] .card-head .btn-icon {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    box-shadow: var(--shadow);
+  }
+  .grid[data-mobile-columns='2'] .departures,
+  .grid[data-mobile-columns='2'] .card-empty { padding-bottom: 38px; }
 }
 
 /* ---- card sheet (opened from the card's ⋯ button) ---- */
