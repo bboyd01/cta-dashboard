@@ -23,7 +23,7 @@
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings'
 import type Long from 'long'
 import { TtlCache } from '../cache.ts'
-import { withApiToken } from './auth-url.ts'
+import { withApiToken, METRA_REQUEST_HEADERS } from './auth-url.ts'
 
 const { transit_realtime: transitRealtime } = GtfsRealtimeBindings
 
@@ -119,7 +119,10 @@ export async function fetchMetraTripUpdates(apiKey: string): Promise<MetraRealti
 
   let response: Response
   try {
-    response = await fetch(target, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    response = await fetch(target, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: METRA_REQUEST_HEADERS,
+    })
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'TimeoutError'
     throw new Error(timedOut ? 'Metra trip updates timed out' : 'Metra trip updates unreachable', {

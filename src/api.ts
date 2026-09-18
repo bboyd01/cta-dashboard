@@ -14,6 +14,7 @@ export type Health = {
   metraRealtime: {
     keyFingerprint: string | null
     keyHadQuotes: boolean
+    outboundIp: string | null
     fetchedAt: string | null
     error: string | null
     tripCount: number

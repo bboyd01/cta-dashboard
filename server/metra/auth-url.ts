@@ -19,3 +19,16 @@ export function withApiToken(url: string, apiKey: string): URL {
   const safeKey = encodeURIComponent(apiKey).replace(/%7C/g, '|')
   return new URL(`${url}${separator}api_token=${safeKey}`)
 }
+
+/**
+ * Node's built-in `fetch` sends no `User-Agent` header at all by default.
+ * Some bot-management layers (Azure's Application Gateway/WAF among them)
+ * treat a missing UA as a signal of automated/malicious traffic and block
+ * the request before it ever reaches the actual application -- a 403 from
+ * the gateway itself, unrelated to whether the API key is valid. A real,
+ * descriptive UA is also just good practice for a server-to-server client.
+ */
+export const METRA_REQUEST_HEADERS: Record<string, string> = {
+  'user-agent': 'cta-dashboard/1.0 (+https://github.com/bboyd01/cta-dashboard)',
+  accept: 'application/x-protobuf, application/zip, text/plain, */*',
+}

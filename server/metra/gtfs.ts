@@ -10,7 +10,7 @@
  */
 
 import AdmZip from 'adm-zip'
-import { withApiToken } from './auth-url.ts'
+import { withApiToken, METRA_REQUEST_HEADERS } from './auth-url.ts'
 
 export type GtfsRow = Record<string, string>
 
@@ -78,7 +78,10 @@ async function fetchMetra(url: string, apiKey: string, label: string): Promise<R
   const target = withApiToken(url, apiKey)
   let response: Response
   try {
-    response = await fetch(target, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    response = await fetch(target, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: METRA_REQUEST_HEADERS,
+    })
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'TimeoutError'
     throw new Error(timedOut ? `${label} timed out` : `${label} unreachable`, { cause: error })

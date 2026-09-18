@@ -205,7 +205,7 @@ actually doing, without shell access to it:
   "metraStations": { "source": "gtfs", "fetchedAt": "...", "count": 240, "tripCount": 1830 },
   "metraRealtime": {
     "keyFingerprint": "ab…yz (18 chars)", "keyHadQuotes": false,
-    "fetchedAt": "...", "error": null, "tripCount": 1204
+    "outboundIp": "20.1.2.3", "fetchedAt": "...", "error": null, "tripCount": 1204
   }
 }
 ```
@@ -229,6 +229,13 @@ actually doing, without shell access to it:
   usually means the feed returned data but nothing in it matched anything
   useful. Compare it against `metraStations.tripCount` (the static schedule's
   own trip count) to gauge how much of the schedule realtime is covering.
+  `outboundIp` is this server's own public IP. If `error` is a 403 whose body
+  names a gateway (Metra's realtime feed sits behind an Azure Application
+  Gateway) rather than an app-level "invalid key" message, the block is
+  happening before your key is even checked — most likely that IP, or the
+  network it's on, needs to be allowlisted. That's the exact address to give
+  Metra's API support; compare it against the IP a manual `curl` test used
+  from your own machine to confirm whether this is IP-specific.
 
 ## How it works
 

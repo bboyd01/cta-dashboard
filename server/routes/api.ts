@@ -13,6 +13,7 @@ import type { CtaProvider } from '../cta/types.ts'
 import type { StationIndex } from '../stations/index.ts'
 import type { MetraScheduleIndex } from '../metra/schedule.ts'
 import { getMetraRealtimeStatus } from '../metra/realtime.ts'
+import { getOutboundIp } from '../metra/outbound-ip.ts'
 import { loadDepartures } from '../departures.ts'
 
 export type ApiDeps = {
@@ -48,7 +49,7 @@ export function createApiRouter(deps: ApiDeps): Router {
     return value
   }
 
-  router.get('/health', (_req, res) => {
+  router.get('/health', async (_req, res) => {
     const stations = deps.stations()
     const metraStations = deps.metraStations()
     res.json({
@@ -75,9 +76,14 @@ export function createApiRouter(deps: ApiDeps): Router {
       // to confirm the value the server is using is really what you typed --
       // `keyHadQuotes: true` means it looked wrapped in quotes and they were
       // stripped, which is worth knowing about even though it self-corrects.
+      // `outboundIp` is this server's own public IP -- if Metra's gateway is
+      // blocking by IP/network rather than checking the key at all (a 403
+      // whose body identifies the gateway itself, not Metra's application,
+      // is the tell), this is the address that would need allowlisting.
       metraRealtime: {
         keyFingerprint: deps.metraApiKeyFingerprint,
         keyHadQuotes: deps.metraApiKeyHadQuotes,
+        outboundIp: await getOutboundIp(),
         ...getMetraRealtimeStatus(),
       },
     })
