@@ -82,6 +82,7 @@ export async function createServer() {
       metraStations: () => metraStations,
       mock: env.mock,
       discordConfigured: Boolean(env.discordWebhookUrl),
+      metraApiKeyConfigured: Boolean(env.metraApiKey),
     }),
   )
 

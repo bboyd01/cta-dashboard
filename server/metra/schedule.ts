@@ -25,6 +25,7 @@ import { CHICAGO, weekday, wallClockToInstant, zonedParts } from '../../shared/t
 import { fetchGtfsFeed, fetchPublishedVersion, type GtfsFeed } from './gtfs.ts'
 import { MetraRealtimeIndex } from './realtime.ts'
 import { SEED_METRA_SCHEDULE } from './seed.ts'
+import { SCHEMA_VERSION } from './schema-version.ts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
@@ -46,6 +47,16 @@ export type MetraTrip = {
 type CalendarEntry = { days: boolean[]; startDate: string; endDate: string }
 
 export type MetraScheduleFile = {
+  /**
+   * Bumped whenever MetraTrip/StationStop's shape changes. A cached
+   * metra-schedule.json written by an older version of this file is silently
+   * incompatible otherwise -- e.g. when `headsign` was renamed to
+   * `destination`, a stale cache kept the old field name, `trip.destination`
+   * read as `undefined` for every trip, and every departure fell back to the
+   * literal string 'Scheduled'. Mismatched (or missing/pre-versioning)
+   * caches are treated as absent so they get rebuilt instead of misread.
+   */
+  schemaVersion: number
   source: 'gtfs' | 'seed'
   fetchedAt: string | null
   /** The `published.txt` build id this schedule was parsed from, if known. */
@@ -222,6 +233,7 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
   }
 
   return {
+    schemaVersion: SCHEMA_VERSION,
     source: 'gtfs',
     fetchedAt: new Date().toISOString(),
     publishedVersion: null,
@@ -240,7 +252,12 @@ async function readCached(filePath: string): Promise<MetraScheduleFile | null> {
   try {
     const parsed = JSON.parse(await fs.readFile(filePath, 'utf8')) as Partial<MetraScheduleFile>
     if (!Array.isArray(parsed.stations) || !Array.isArray(parsed.trips)) return null
+    // A cache from before schemaVersion existed, or from a different one,
+    // may keep an old field layout (see the schemaVersion doc comment) --
+    // treat it as absent rather than silently misreading it.
+    if (parsed.schemaVersion !== SCHEMA_VERSION) return null
     return {
+      schemaVersion: SCHEMA_VERSION,
       source: parsed.source === 'gtfs' ? 'gtfs' : 'seed',
       fetchedAt: typeof parsed.fetchedAt === 'string' ? parsed.fetchedAt : null,
       publishedVersion: typeof parsed.publishedVersion === 'string' ? parsed.publishedVersion : null,

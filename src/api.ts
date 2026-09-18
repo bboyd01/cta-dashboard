@@ -9,8 +9,8 @@ export type Health = {
   mock: boolean
   discordConfigured: boolean
   stations: { source: 'portal' | 'seed'; fetchedAt: string | null; count: number }
-  metraStations: { source: 'gtfs' | 'seed'; fetchedAt: string | null; count: number }
-  metraRealtime: { fetchedAt: string | null; error: string | null; tripCount: number }
+  metraStations: { source: 'gtfs' | 'seed'; fetchedAt: string | null; count: number; tripCount: number }
+  metraRealtime: { keyConfigured: boolean; fetchedAt: string | null; error: string | null; tripCount: number }
 }
 
 export type LineSummary = { id: LineId; name: string; color: string }

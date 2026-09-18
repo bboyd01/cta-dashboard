@@ -23,6 +23,7 @@ export type ApiDeps = {
   metraStations: () => MetraScheduleIndex
   mock: boolean
   discordConfigured: boolean
+  metraApiKeyConfigured: boolean
 }
 
 /** Bus catalog calls are cached far longer than predictions — routes rarely move. */
@@ -61,10 +62,13 @@ export function createApiRouter(deps: ApiDeps): Router {
         source: metraStations.file.source,
         fetchedAt: metraStations.file.fetchedAt,
         count: metraStations.stations.length,
+        tripCount: metraStations.file.trips.length,
       },
       // Not populated in mock mode -- mock synthesizes its own overlay and
-      // never calls the real fetch this reports on.
-      metraRealtime: getMetraRealtimeStatus(),
+      // never calls the real fetch this reports on. `keyConfigured: false`
+      // with a null fetchedAt means METRA_API_KEY isn't set in this
+      // environment at all, before any network call is even attempted.
+      metraRealtime: { keyConfigured: deps.metraApiKeyConfigured, ...getMetraRealtimeStatus() },
     })
   })
 

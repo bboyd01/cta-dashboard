@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { buildMetraSchedule, loadMetraSchedule, MetraScheduleIndex } from './schedule.ts'
+import { SCHEMA_VERSION } from './schema-version.ts'
 import { MetraRealtimeIndex } from './realtime.ts'
 import type { GtfsFeed } from './gtfs.ts'
 
@@ -288,6 +289,7 @@ describe('loadMetraSchedule', () => {
 
   it('prefers a fresh cached copy over refetching, even without a key', async () => {
     const cached = {
+      schemaVersion: SCHEMA_VERSION,
       source: 'gtfs',
       fetchedAt: new Date().toISOString(),
       publishedVersion: 'v1',
@@ -303,6 +305,7 @@ describe('loadMetraSchedule', () => {
 
   it('keeps a stale cached copy when the feed is unreachable', async () => {
     const stale = {
+      schemaVersion: SCHEMA_VERSION,
       source: 'gtfs',
       fetchedAt: new Date('2020-01-01').toISOString(),
       publishedVersion: 'v1',
@@ -316,6 +319,27 @@ describe('loadMetraSchedule', () => {
     // failure path: the feed can't be reached, so the stale cache is kept.
     const loaded = await loadMetraSchedule(file(), 'not-a-real-key')
     expect(loaded.stations[0].name).toBe('Stale')
+  })
+
+  it('discards a cache from a different schema version instead of misreading it', async () => {
+    // Regression test: a cache written before a MetraTrip field was renamed
+    // (e.g. headsign -> destination) must not be read as if it still matched
+    // this version's shape -- that previously made every departure's
+    // destination silently come out as 'Scheduled' for every trip.
+    const outdated = {
+      schemaVersion: SCHEMA_VERSION - 1,
+      source: 'gtfs',
+      fetchedAt: new Date().toISOString(),
+      publishedVersion: 'v1',
+      stations: [{ mapId: 'Outdated', name: 'Outdated', lines: ['BNSF'], stops: [] }],
+      trips: [],
+      calendar: {},
+      exceptions: {},
+    }
+    await fs.writeFile(file(), JSON.stringify(outdated), 'utf8')
+    const loaded = await loadMetraSchedule(file(), '')
+    expect(loaded.source).toBe('seed')
+    expect(loaded.stations.some((s) => s.name === 'Outdated')).toBe(false)
   })
 
   it('ignores an unreadable cache and still returns usable data', async () => {

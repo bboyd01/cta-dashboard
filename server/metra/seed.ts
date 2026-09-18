@@ -8,6 +8,7 @@
  */
 
 import { formatGtfsTime, type MetraScheduleFile } from './schedule.ts'
+import { SCHEMA_VERSION } from './schema-version.ts'
 
 const ALWAYS: { days: boolean[]; startDate: string; endDate: string } = {
   days: [true, true, true, true, true, true, true],
@@ -21,6 +22,7 @@ function trip(times: [number, number][]): number[] {
 }
 
 export const SEED_METRA_SCHEDULE: MetraScheduleFile = {
+  schemaVersion: SCHEMA_VERSION,
   source: 'seed',
   fetchedAt: null,
   publishedVersion: null,
