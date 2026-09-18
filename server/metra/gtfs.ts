@@ -87,7 +87,12 @@ async function fetchMetra(url: string, apiKey: string, label: string): Promise<R
     throw new Error(timedOut ? `${label} timed out` : `${label} unreachable`, { cause: error })
   }
   if (!response.ok) {
-    throw new Error(`${label} returned HTTP ${response.status}`)
+    // Best-effort: an error response is normally small text/JSON explaining
+    // why, unlike the multi-megabyte zip a success returns. Must not itself
+    // throw if there's no readable body.
+    const detail = await response.text().catch(() => '')
+    const snippet = detail.trim().slice(0, 200)
+    throw new Error(`${label} returned HTTP ${response.status}${snippet ? `: ${snippet}` : ''}`)
   }
   return response
 }

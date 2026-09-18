@@ -131,7 +131,15 @@ export async function fetchMetraTripUpdates(apiKey: string): Promise<MetraRealti
     })
   }
   if (!response.ok) {
-    throw new Error(`Metra trip updates returned HTTP ${response.status}`)
+    // A 403's body is often the one place Metra actually says *why* -- an
+    // expired key, an IP restriction, a plan/scope mismatch -- rather than
+    // just the bare status code. Best-effort: some error responses have no
+    // readable body at all, which must not itself throw.
+    const detail = await response.text().catch(() => '')
+    const snippet = detail.trim().slice(0, 200)
+    throw new Error(
+      `Metra trip updates returned HTTP ${response.status}${snippet ? `: ${snippet}` : ''}`,
+    )
   }
 
   return decodeTripUpdates(new Uint8Array(await response.arrayBuffer()))
