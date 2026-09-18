@@ -8,7 +8,7 @@ export type Card = {
   kind: CardKind
   /** Route code: an 'L' line id ('Brn'), a bus route ('49'), or a Metra line id ('UP-N'). */
   route: string
-  /** Heading text, e.g. 'Brown Line', '#49 Western', or 'Union Pacific North'. */
+  /** Heading text, e.g. 'Brown Line', '#49 Western', or 'UP-N'. */
   title: string
   /** Train and Metra: the station id. Bus: the route's stop-group key. */
   stationId: string

@@ -35,17 +35,17 @@ const WHITE = '#ffffff'
 const INK = '#15181d'
 
 export const METRA_LINES: Record<MetraLineId, MetraLineInfo> = {
-  BNSF: { id: 'BNSF', name: 'BNSF Railway', color: '#4C8C4A', onColor: WHITE },
-  HC: { id: 'HC', name: 'Heritage Corridor', color: '#7A1F2B', onColor: WHITE },
-  ME: { id: 'ME', name: 'Metra Electric', color: '#F48F1E', onColor: INK },
-  'MD-N': { id: 'MD-N', name: 'Milwaukee District North', color: '#F4A24C', onColor: INK },
-  'MD-W': { id: 'MD-W', name: 'Milwaukee District West', color: '#C9A227', onColor: INK },
-  NCS: { id: 'NCS', name: 'North Central Service', color: '#9063CD', onColor: WHITE },
-  RI: { id: 'RI', name: 'Rock Island District', color: '#DA291C', onColor: WHITE },
-  SWS: { id: 'SWS', name: 'SouthWest Service', color: '#0071BC', onColor: WHITE },
-  'UP-N': { id: 'UP-N', name: 'Union Pacific North', color: '#00843D', onColor: WHITE },
-  'UP-NW': { id: 'UP-NW', name: 'Union Pacific Northwest', color: '#FEDD00', onColor: INK },
-  'UP-W': { id: 'UP-W', name: 'Union Pacific West', color: '#FFB1BB', onColor: INK },
+  BNSF: { id: 'BNSF', name: 'BNSF', color: '#4C8C4A', onColor: WHITE },
+  HC: { id: 'HC', name: 'HC', color: '#7A1F2B', onColor: WHITE },
+  ME: { id: 'ME', name: 'ME', color: '#F48F1E', onColor: INK },
+  'MD-N': { id: 'MD-N', name: 'MD-N', color: '#F4A24C', onColor: INK },
+  'MD-W': { id: 'MD-W', name: 'MD-W', color: '#C9A227', onColor: INK },
+  NCS: { id: 'NCS', name: 'NCS', color: '#9063CD', onColor: WHITE },
+  RI: { id: 'RI', name: 'RI', color: '#DA291C', onColor: WHITE },
+  SWS: { id: 'SWS', name: 'SWS', color: '#0071BC', onColor: WHITE },
+  'UP-N': { id: 'UP-N', name: 'UP-N', color: '#00843D', onColor: WHITE },
+  'UP-NW': { id: 'UP-NW', name: 'UP-NW', color: '#FEDD00', onColor: INK },
+  'UP-W': { id: 'UP-W', name: 'UP-W', color: '#FFB1BB', onColor: INK },
 }
 
 export const METRA_LINE_IDS = Object.keys(METRA_LINES) as MetraLineId[]
