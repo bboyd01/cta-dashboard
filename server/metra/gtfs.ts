@@ -68,9 +68,11 @@ export type GtfsFeed = {
 const FETCH_TIMEOUT_MS = 60_000
 
 /**
- * GETs a Metra GTFS URL with the API key attached both ways Metra's docs
- * describe accepting it (a bearer token, or an `api_token` query parameter),
- * for compatibility across the realtime and static endpoints.
+ * GETs a Metra GTFS URL with the API key as an `api_token` query parameter --
+ * confirmed against a known-working third-party integration
+ * (benwittbrodt/metra-tracker) to be the whole of what Metra's auth expects.
+ * An earlier version also sent an `Authorization: Bearer` header, which was
+ * never actually documented or verified.
  */
 async function fetchMetra(url: string, apiKey: string, label: string): Promise<Response> {
   const target = new URL(url)
@@ -79,10 +81,7 @@ async function fetchMetra(url: string, apiKey: string, label: string): Promise<R
   }
   let response: Response
   try {
-    response = await fetch(target, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      headers: apiKey ? { authorization: `Bearer ${apiKey}` } : undefined,
-    })
+    response = await fetch(target, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'TimeoutError'
     throw new Error(timedOut ? `${label} timed out` : `${label} unreachable`, { cause: error })

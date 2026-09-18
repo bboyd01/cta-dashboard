@@ -106,17 +106,24 @@ export class MetraRealtimeIndex {
   }
 }
 
-/** Downloads and decodes Metra's GTFS-realtime trip updates feed. */
+/**
+ * Downloads and decodes Metra's GTFS-realtime trip updates feed.
+ *
+ * Auth is the `api_token` query parameter alone -- confirmed against a known-
+ * working third-party integration (benwittbrodt/metra-tracker). An earlier
+ * version of this also sent an `Authorization: Bearer` header "for
+ * compatibility"; that was never documented or verified, and is the likely
+ * reason every request was failing outright (a healthy schedule.zip fetch
+ * proved the key itself was good, so the failure had to be something specific
+ * to this endpoint).
+ */
 export async function fetchMetraTripUpdates(apiKey: string): Promise<MetraRealtimeIndex> {
   const target = new URL(TRIP_UPDATES_URL)
   if (apiKey) target.searchParams.set('api_token', apiKey)
 
   let response: Response
   try {
-    response = await fetch(target, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      headers: apiKey ? { authorization: `Bearer ${apiKey}` } : undefined,
-    })
+    response = await fetch(target, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'TimeoutError'
     throw new Error(timedOut ? 'Metra trip updates timed out' : 'Metra trip updates unreachable', {
