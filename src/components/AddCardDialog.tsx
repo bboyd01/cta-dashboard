@@ -59,16 +59,16 @@ export function AddCardDialog({ existing, onCancel, onSave }: Props) {
               Train
             </button>
             <button
-              type="button" className="choice" aria-pressed={kind === 'metra'}
-              onClick={() => setKind('metra')}
-            >
-              Metra
-            </button>
-            <button
               type="button" className="choice" aria-pressed={kind === 'bus'}
               onClick={() => setKind('bus')}
             >
               Bus
+            </button>
+            <button
+              type="button" className="choice" aria-pressed={kind === 'metra'}
+              onClick={() => setKind('metra')}
+            >
+              Metra
             </button>
           </div>
         </div>
