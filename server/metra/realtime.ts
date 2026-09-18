@@ -23,6 +23,7 @@
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings'
 import type Long from 'long'
 import { TtlCache } from '../cache.ts'
+import { withApiToken } from './auth-url.ts'
 
 const { transit_realtime: transitRealtime } = GtfsRealtimeBindings
 
@@ -110,16 +111,11 @@ export class MetraRealtimeIndex {
  * Downloads and decodes Metra's GTFS-realtime trip updates feed.
  *
  * Auth is the `api_token` query parameter alone -- confirmed against a known-
- * working third-party integration (benwittbrodt/metra-tracker). An earlier
- * version of this also sent an `Authorization: Bearer` header "for
- * compatibility"; that was never documented or verified, and is the likely
- * reason every request was failing outright (a healthy schedule.zip fetch
- * proved the key itself was good, so the failure had to be something specific
- * to this endpoint).
+ * working third-party integration (benwittbrodt/metra-tracker). See
+ * `withApiToken` for why it isn't built with `URLSearchParams`.
  */
 export async function fetchMetraTripUpdates(apiKey: string): Promise<MetraRealtimeIndex> {
-  const target = new URL(TRIP_UPDATES_URL)
-  if (apiKey) target.searchParams.set('api_token', apiKey)
+  const target = withApiToken(TRIP_UPDATES_URL, apiKey)
 
   let response: Response
   try {

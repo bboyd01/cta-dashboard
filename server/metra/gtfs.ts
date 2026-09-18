@@ -10,6 +10,7 @@
  */
 
 import AdmZip from 'adm-zip'
+import { withApiToken } from './auth-url.ts'
 
 export type GtfsRow = Record<string, string>
 
@@ -71,14 +72,10 @@ const FETCH_TIMEOUT_MS = 60_000
  * GETs a Metra GTFS URL with the API key as an `api_token` query parameter --
  * confirmed against a known-working third-party integration
  * (benwittbrodt/metra-tracker) to be the whole of what Metra's auth expects.
- * An earlier version also sent an `Authorization: Bearer` header, which was
- * never actually documented or verified.
+ * See `withApiToken` for why it isn't built with `URLSearchParams`.
  */
 async function fetchMetra(url: string, apiKey: string, label: string): Promise<Response> {
-  const target = new URL(url)
-  if (apiKey && !target.searchParams.has('api_token')) {
-    target.searchParams.set('api_token', apiKey)
-  }
+  const target = withApiToken(url, apiKey)
   let response: Response
   try {
     response = await fetch(target, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
