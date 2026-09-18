@@ -7,7 +7,7 @@
  * without a key or network access.
  */
 
-import type { MetraScheduleFile } from './schedule.ts'
+import { formatGtfsTime, type MetraScheduleFile } from './schedule.ts'
 
 const ALWAYS: { days: boolean[]; startDate: string; endDate: string } = {
   days: [true, true, true, true, true, true, true],
@@ -77,43 +77,53 @@ export const SEED_METRA_SCHEDULE: MetraScheduleFile = {
     },
   ],
   trips: [
-    ...trip([[6, 5], [7, 5], [8, 5], [16, 35], [17, 35], [18, 35]]).map((seconds, i) => ({
-      tripId: `SEED-BNSF-${i}`,
-      routeId: 'BNSF' as const,
-      serviceId: 'SEED',
-      directionId: (i < 3 ? '1' : '0') as '0' | '1',
-      headsign: i < 3 ? 'Chicago Union Station' : 'Aurora',
-      stops:
+    ...trip([[6, 5], [7, 5], [8, 5], [16, 35], [17, 35], [18, 35]]).map((seconds, i) => {
+      const stops =
         i < 3
           ? [
-              { platformId: 'BNSF_AUR:1', stopId: 'BNSF_AUR', seconds: seconds - 3120 },
-              { platformId: 'BNSF_NAP:1', stopId: 'BNSF_NAP', seconds: seconds - 1200 },
-              { platformId: 'BNSF_CUS:1', stopId: 'BNSF_CUS', seconds },
+              { platformId: 'BNSF_AUR:1', stopId: 'BNSF_AUR', sequence: 0, seconds: seconds - 3120 },
+              { platformId: 'BNSF_NAP:1', stopId: 'BNSF_NAP', sequence: 1, seconds: seconds - 1200 },
+              { platformId: 'BNSF_CUS:1', stopId: 'BNSF_CUS', sequence: 2, seconds },
             ]
           : [
-              { platformId: 'BNSF_CUS:0', stopId: 'BNSF_CUS', seconds },
-              { platformId: 'BNSF_NAP:0', stopId: 'BNSF_NAP', seconds: seconds + 1200 },
-              { platformId: 'BNSF_AUR:0', stopId: 'BNSF_AUR', seconds: seconds + 3120 },
-            ],
-    })),
-    ...trip([[6, 10], [7, 10], [8, 10], [16, 40], [17, 40], [18, 40]]).map((seconds, i) => ({
-      tripId: `SEED-UPN-${i}`,
-      routeId: 'UP-N' as const,
-      serviceId: 'SEED',
-      directionId: (i < 3 ? '1' : '0') as '0' | '1',
-      headsign: i < 3 ? 'Ogilvie Transportation Center' : 'Kenosha',
-      stops:
+              { platformId: 'BNSF_CUS:0', stopId: 'BNSF_CUS', sequence: 0, seconds },
+              { platformId: 'BNSF_NAP:0', stopId: 'BNSF_NAP', sequence: 1, seconds: seconds + 1200 },
+              { platformId: 'BNSF_AUR:0', stopId: 'BNSF_AUR', sequence: 2, seconds: seconds + 3120 },
+            ]
+      return {
+        tripId: `SEED-BNSF-${i}`,
+        gtfsRouteId: 'BNSF',
+        routeId: 'BNSF' as const,
+        serviceId: 'SEED',
+        directionId: (i < 3 ? '1' : '0') as '0' | '1',
+        headsign: i < 3 ? 'Chicago Union Station' : 'Aurora',
+        startTime: formatGtfsTime(stops[0].seconds),
+        stops,
+      }
+    }),
+    ...trip([[6, 10], [7, 10], [8, 10], [16, 40], [17, 40], [18, 40]]).map((seconds, i) => {
+      const stops =
         i < 3
           ? [
-              { platformId: 'UPN_WKG:1', stopId: 'UPN_WKG', seconds: seconds - 3300 },
-              { platformId: 'UPN_EVN:1', stopId: 'UPN_EVN', seconds: seconds - 1500 },
-              { platformId: 'UPN_OTC:1', stopId: 'UPN_OTC', seconds },
+              { platformId: 'UPN_WKG:1', stopId: 'UPN_WKG', sequence: 0, seconds: seconds - 3300 },
+              { platformId: 'UPN_EVN:1', stopId: 'UPN_EVN', sequence: 1, seconds: seconds - 1500 },
+              { platformId: 'UPN_OTC:1', stopId: 'UPN_OTC', sequence: 2, seconds },
             ]
           : [
-              { platformId: 'UPN_OTC:0', stopId: 'UPN_OTC', seconds },
-              { platformId: 'UPN_EVN:0', stopId: 'UPN_EVN', seconds: seconds + 1500 },
-              { platformId: 'UPN_WKG:0', stopId: 'UPN_WKG', seconds: seconds + 3300 },
-            ],
-    })),
+              { platformId: 'UPN_OTC:0', stopId: 'UPN_OTC', sequence: 0, seconds },
+              { platformId: 'UPN_EVN:0', stopId: 'UPN_EVN', sequence: 1, seconds: seconds + 1500 },
+              { platformId: 'UPN_WKG:0', stopId: 'UPN_WKG', sequence: 2, seconds: seconds + 3300 },
+            ]
+      return {
+        tripId: `SEED-UPN-${i}`,
+        gtfsRouteId: 'UP-N',
+        routeId: 'UP-N' as const,
+        serviceId: 'SEED',
+        directionId: (i < 3 ? '1' : '0') as '0' | '1',
+        headsign: i < 3 ? 'Ogilvie Transportation Center' : 'Kenosha',
+        startTime: formatGtfsTime(stops[0].seconds),
+        stops,
+      }
+    }),
   ],
 }

@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { buildMetraSchedule, loadMetraSchedule, MetraScheduleIndex } from './schedule.ts'
+import { MetraRealtimeIndex } from './realtime.ts'
 import type { GtfsFeed } from './gtfs.ts'
 
 /** A minimal but complete feed: one route, two stations, one round trip. */
@@ -152,8 +153,11 @@ describe('MetraScheduleIndex.departuresAt realtime overlay', () => {
     buildMetraSchedule(feed({ calendar: [calendarWindow('20260914', '20260914')] })),
   )
   const now = new Date('2026-09-14T10:00:00Z')
-  const realtimeFor = (delaySeconds: number | null, predictedAt: string | null = null, skipped = false) =>
-    new Map([['t1', new Map([['NAP', { skipped, delaySeconds, predictedAt }]])]])
+  const realtimeFor = (delaySeconds: number | null, predictedAt: string | null = null, skipped = false) => {
+    const realtime = new MetraRealtimeIndex()
+    realtime._add('t1', null, [{ stopId: 'NAP', stopSequence: null, status: { skipped, delaySeconds, predictedAt } }])
+    return realtime
+  }
 
   it('shifts the arrival by the reported delay and flags it delayed', () => {
     const [departure] = index.departuresAt('Naperville', now, realtimeFor(300))
@@ -188,15 +192,17 @@ describe('MetraScheduleIndex.departuresAt realtime overlay', () => {
   })
 
   it('falls back to the scheduled time when realtime has nothing for this trip', () => {
-    const empty = new Map()
-    const [departure] = index.departuresAt('Naperville', now, empty)
+    const [departure] = index.departuresAt('Naperville', now, new MetraRealtimeIndex())
     expect(departure.isScheduled).toBe(true)
     expect(departure.isDelayed).toBe(false)
     expect(departure.arrivalAt).toBe('2026-09-14T12:00:00.000Z')
   })
 
   it('falls back to the scheduled time when realtime knows the trip but not this stop', () => {
-    const otherStopOnly = new Map([['t1', new Map([['CUS', { skipped: false, delaySeconds: 300, predictedAt: null }]])]])
+    const otherStopOnly = new MetraRealtimeIndex()
+    otherStopOnly._add('t1', null, [
+      { stopId: 'CUS', stopSequence: null, status: { skipped: false, delaySeconds: 300, predictedAt: null } },
+    ])
     const [departure] = index.departuresAt('Naperville', now, otherStopOnly)
     expect(departure.isScheduled).toBe(true)
   })

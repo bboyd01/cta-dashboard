@@ -3,13 +3,14 @@
  *
  * The static feed alone gives every departure a scheduled time. `departuresAt`
  * optionally overlays a `MetraRealtimeIndex` (see server/metra/realtime.ts) on
- * top of that, matched by (trip_id, stop_id): a trip the realtime feed knows
- * about gets its live delay or predicted time and `isScheduled: false`; a trip
- * it doesn't (not running yet, or the feed is unavailable) keeps its plain
- * scheduled time. So the only Metra data *this* file needs from GTFS is the
- * schedule: which lines call at which stations, in which direction, and at
- * what time of day, on which days -- plus, now, the raw trip and stop ids
- * needed to look a trip up in that realtime index.
+ * top of that: a trip the realtime feed recognizes gets its live delay or
+ * predicted time and `isScheduled: false`; a trip it doesn't (not running yet,
+ * or the feed is unavailable) keeps its plain scheduled time. So the only
+ * Metra data *this* file needs from GTFS is the schedule: which lines call at
+ * which stations, in which direction, and at what time of day, on which days
+ * -- plus, now, the trip_id, route_id, stop_id and computed start_time needed
+ * to look a trip up in that realtime index (see `MetraRealtimeIndex.statusFor`
+ * for exactly how that lookup is matched).
  *
  * A GTFS stop_id is a physical platform, not a direction — unlike the CTA
  * where a stop_id is already one-directional. To keep the card picker's
@@ -22,19 +23,23 @@ import type { Station, StationStop, Departure } from '../../shared/types.ts'
 import { normalizeMetraLineId, type MetraLineId } from '../../shared/metraLines.ts'
 import { CHICAGO, weekday, wallClockToInstant, zonedParts } from '../../shared/time.ts'
 import { fetchGtfsFeed, fetchPublishedVersion, type GtfsFeed } from './gtfs.ts'
-import type { MetraRealtimeIndex } from './realtime.ts'
+import { MetraRealtimeIndex } from './realtime.ts'
 import { SEED_METRA_SCHEDULE } from './seed.ts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
 export type MetraTrip = {
   tripId: string
+  /** The raw GTFS route_id (e.g. Metra's own 'UP-N'), as the realtime feed's TripDescriptor reports it. */
+  gtfsRouteId: string
   routeId: MetraLineId
   serviceId: string
   directionId: '0' | '1'
   headsign: string
-  /** Sorted by GTFS stop_sequence. `stopId` is the raw GTFS id, for matching against realtime updates. */
-  stops: { platformId: string; stopId: string; seconds: number }[]
+  /** 'HH:MM:SS' of this trip's first stop — GTFS-realtime's own trip-matching fallback when trip_id spellings differ. */
+  startTime: string
+  /** Sorted by GTFS stop_sequence. `stopId`/`sequence` are the raw GTFS values, for matching against realtime updates. */
+  stops: { platformId: string; stopId: string; sequence: number; seconds: number }[]
 }
 
 type CalendarEntry = { days: boolean[]; startDate: string; endDate: string }
@@ -68,6 +73,11 @@ function parseGtfsTime(value: string): number | null {
   const m = /^(\d{1,3}):(\d{2}):(\d{2})$/.exec(value.trim())
   if (!m) return null
   return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])
+}
+
+/** Inverse of `parseGtfsTime`, for reconstructing a trip's GTFS-RT `start_time`. Exported for the seed fixture. */
+export function formatGtfsTime(seconds: number): string {
+  return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`
 }
 
 function bestHeadsign(headsigns: Map<string, number>): string {
@@ -117,14 +127,21 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
     if (id && line) routeLines.set(id, line)
   }
 
-  type TripMeta = { routeId: MetraLineId; serviceId: string; directionId: '0' | '1'; headsign: string }
+  type TripMeta = {
+    gtfsRouteId: string
+    routeId: MetraLineId
+    serviceId: string
+    directionId: '0' | '1'
+    headsign: string
+  }
   const tripMeta = new Map<string, TripMeta>()
   for (const row of feed.trips) {
     const tripId = row.trip_id?.trim()
     const routeId = row.route_id?.trim()
     const line = routeId ? routeLines.get(routeId) : undefined
-    if (!tripId || !line) continue
+    if (!tripId || !routeId || !line) continue
     tripMeta.set(tripId, {
+      gtfsRouteId: routeId,
       routeId: line,
       serviceId: row.service_id?.trim() ?? '',
       directionId: row.direction_id?.trim() === '1' ? '1' : '0',
@@ -155,7 +172,7 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
     if (!stopTimes || stopTimes.length === 0) continue
     stopTimes.sort((a, b) => a.sequence - b.sequence)
 
-    const stops = stopTimes.map(({ stopId, seconds }) => {
+    const stops = stopTimes.map(({ stopId, sequence, seconds }) => {
       const platformId = `${stopId}:${meta.directionId}`
       let platform = platforms.get(platformId)
       if (!platform) {
@@ -164,15 +181,17 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
       }
       platform.lines.add(meta.routeId)
       platform.headsigns.set(meta.headsign, (platform.headsigns.get(meta.headsign) ?? 0) + 1)
-      return { platformId, stopId, seconds }
+      return { platformId, stopId, sequence, seconds }
     })
 
     trips.push({
       tripId,
+      gtfsRouteId: meta.gtfsRouteId,
       routeId: meta.routeId,
       serviceId: meta.serviceId,
       directionId: meta.directionId,
       headsign: meta.headsign,
+      startTime: formatGtfsTime(stops[0].seconds),
       stops,
     })
   }
@@ -344,11 +363,14 @@ export class MetraScheduleIndex {
    */
   #resolveArrival(
     trip: MetraTrip,
-    stop: { stopId: string },
+    stop: { stopId: string; sequence: number },
     scheduledAt: Date,
     realtime: MetraRealtimeIndex | undefined,
   ): { arrivalAt: Date; isScheduled: boolean; isDelayed: boolean } | null {
-    const status = realtime?.get(trip.tripId)?.get(stop.stopId)
+    const status = realtime?.statusFor(
+      { tripId: trip.tripId, routeId: trip.gtfsRouteId, directionId: trip.directionId, startTime: trip.startTime },
+      stop,
+    )
     if (!status) return { arrivalAt: scheduledAt, isScheduled: true, isDelayed: false }
     if (status.skipped) return null
 

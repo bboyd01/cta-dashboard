@@ -12,6 +12,7 @@ import type { TtlCache } from '../cache.ts'
 import type { CtaProvider } from '../cta/types.ts'
 import type { StationIndex } from '../stations/index.ts'
 import type { MetraScheduleIndex } from '../metra/schedule.ts'
+import { getMetraRealtimeStatus } from '../metra/realtime.ts'
 import { loadDepartures } from '../departures.ts'
 
 export type ApiDeps = {
@@ -61,6 +62,9 @@ export function createApiRouter(deps: ApiDeps): Router {
         fetchedAt: metraStations.file.fetchedAt,
         count: metraStations.stations.length,
       },
+      // Not populated in mock mode -- mock synthesizes its own overlay and
+      // never calls the real fetch this reports on.
+      metraRealtime: getMetraRealtimeStatus(),
     })
   })
 
