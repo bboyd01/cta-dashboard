@@ -6,7 +6,7 @@
 import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadEnv, envWarnings } from './env.ts'
+import { loadEnv, envWarnings, keyFingerprint } from './env.ts'
 import { hasTimeZoneSupport, CHICAGO } from '../shared/time.ts'
 import { ConfigStore, ensureDataDir } from './config-store.ts'
 import { TtlCache } from './cache.ts'
@@ -82,7 +82,8 @@ export async function createServer() {
       metraStations: () => metraStations,
       mock: env.mock,
       discordConfigured: Boolean(env.discordWebhookUrl),
-      metraApiKeyConfigured: Boolean(env.metraApiKey),
+      metraApiKeyFingerprint: keyFingerprint(env.metraApiKey),
+      metraApiKeyHadQuotes: env.metraApiKeyHadQuotes,
       buildVersion: env.buildVersion,
     }),
   )

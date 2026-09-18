@@ -23,7 +23,8 @@ export type ApiDeps = {
   metraStations: () => MetraScheduleIndex
   mock: boolean
   discordConfigured: boolean
-  metraApiKeyConfigured: boolean
+  metraApiKeyFingerprint: string | null
+  metraApiKeyHadQuotes: boolean
   buildVersion: string
 }
 
@@ -67,10 +68,18 @@ export function createApiRouter(deps: ApiDeps): Router {
         tripCount: metraStations.file.trips.length,
       },
       // Not populated in mock mode -- mock synthesizes its own overlay and
-      // never calls the real fetch this reports on. `keyConfigured: false`
-      // with a null fetchedAt means METRA_API_KEY isn't set in this
-      // environment at all, before any network call is even attempted.
-      metraRealtime: { keyConfigured: deps.metraApiKeyConfigured, ...getMetraRealtimeStatus() },
+      // never calls the real fetch this reports on. `keyFingerprint: null`
+      // means METRA_API_KEY isn't set in this environment at all, before any
+      // network call is even attempted. Compare `keyFingerprint` against
+      // your actual key (first two / last two characters, plus its length)
+      // to confirm the value the server is using is really what you typed --
+      // `keyHadQuotes: true` means it looked wrapped in quotes and they were
+      // stripped, which is worth knowing about even though it self-corrects.
+      metraRealtime: {
+        keyFingerprint: deps.metraApiKeyFingerprint,
+        keyHadQuotes: deps.metraApiKeyHadQuotes,
+        ...getMetraRealtimeStatus(),
+      },
     })
   })
 

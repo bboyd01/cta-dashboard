@@ -11,6 +11,8 @@ export type Env = {
   trainApiKey: string
   busApiKey: string
   metraApiKey: string
+  /** True if METRA_API_KEY's raw value was wrapped in quotes we had to strip -- see `cleanValue`. */
+  metraApiKeyHadQuotes: boolean
   discordWebhookUrl: string
   mock: boolean
   /** Short commit SHA of the running build, for confirming a deploy actually picked up new code. */
@@ -19,6 +21,37 @@ export type Env = {
 
 function flag(value: string | undefined): boolean {
   return value === '1' || value?.toLowerCase() === 'true'
+}
+
+/**
+ * Trims whitespace and, if present, one matching pair of wrapping quotes.
+ *
+ * Docker Compose's `env_file:` does not strip quotes the way a shell or a
+ * dotenv library would: `METRA_API_KEY="abc123"` in a `.env` file is passed
+ * through with the quote characters literally part of the value. An API key
+ * with two stray `"` characters is a different, invalid key -- and the
+ * failure mode is exactly this confusing: an endpoint that doesn't check
+ * auth at all still "succeeds" with the garbled value, and only the one that
+ * does check it rejects it.
+ */
+function cleanValue(value: string | undefined): { value: string; hadQuotes: boolean } {
+  const trimmed = value?.trim() ?? ''
+  const quoted =
+    trimmed.length >= 2 &&
+    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'")))
+  return { value: quoted ? trimmed.slice(1, -1).trim() : trimmed, hadQuotes: quoted }
+}
+
+/**
+ * A masked preview safe to put in /api/health: enough for someone to confirm
+ * "yes, that's my key" (or spot that it isn't) without the full secret ever
+ * leaving the server.
+ */
+export function keyFingerprint(key: string): string | null {
+  if (!key) return null
+  if (key.length <= 4) return `(${key.length} chars)`
+  return `${key.slice(0, 2)}…${key.slice(-2)} (${key.length} chars)`
 }
 
 /**
@@ -50,10 +83,11 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     configPath: path.join(dataDir, 'config.json'),
     stationsPath: path.join(dataDir, 'stations.json'),
     metraSchedulePath: path.join(dataDir, 'metra-schedule.json'),
-    trainApiKey: source.CTA_TRAIN_API_KEY?.trim() ?? '',
-    busApiKey: source.CTA_BUS_API_KEY?.trim() ?? '',
-    metraApiKey: source.METRA_API_KEY?.trim() ?? '',
-    discordWebhookUrl: source.DISCORD_WEBHOOK_URL?.trim() ?? '',
+    trainApiKey: cleanValue(source.CTA_TRAIN_API_KEY).value,
+    busApiKey: cleanValue(source.CTA_BUS_API_KEY).value,
+    metraApiKey: cleanValue(source.METRA_API_KEY).value,
+    metraApiKeyHadQuotes: cleanValue(source.METRA_API_KEY).hadQuotes,
+    discordWebhookUrl: cleanValue(source.DISCORD_WEBHOOK_URL).value,
     mock,
     buildVersion: detectBuildVersion(source),
   }
@@ -77,6 +111,13 @@ export function envWarnings(env: Env): string[] {
     if (!env.trainApiKey) warnings.push('CTA_TRAIN_API_KEY is not set — train cards will not load.')
     if (!env.busApiKey) warnings.push('CTA_BUS_API_KEY is not set — bus cards will not load.')
     if (!env.metraApiKey) warnings.push('METRA_API_KEY is not set — Metra cards will not load.')
+  }
+  if (env.metraApiKeyHadQuotes) {
+    warnings.push(
+      'METRA_API_KEY was wrapped in quotes and they were stripped -- if that key stopped ' +
+        'working, double check your .env file does not need them (Docker Compose\'s env_file ' +
+        'passes quote characters through literally, unlike a shell or dotenv).',
+    )
   }
   if (!env.discordWebhookUrl) {
     warnings.push('DISCORD_WEBHOOK_URL is not set — Discord digests are disabled.')

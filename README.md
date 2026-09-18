@@ -203,7 +203,10 @@ actually doing, without shell access to it:
   "mock": false,
   "stations": { "source": "portal", "fetchedAt": "...", "count": 145 },
   "metraStations": { "source": "gtfs", "fetchedAt": "...", "count": 240, "tripCount": 1830 },
-  "metraRealtime": { "keyConfigured": true, "fetchedAt": "...", "error": null, "tripCount": 1204 }
+  "metraRealtime": {
+    "keyFingerprint": "ab…yz (18 chars)", "keyHadQuotes": false,
+    "fetchedAt": "...", "error": null, "tripCount": 1204
+  }
 }
 ```
 
@@ -213,12 +216,19 @@ actually doing, without shell access to it:
   redeploy that doesn't seem to have changed anything, check this first: if it
   still shows the old commit, the deploy didn't actually rebuild the image.
 - **`metraRealtime`** reports the last attempt to fetch Metra's GTFS-realtime
-  trip updates feed. `keyConfigured: false` means `METRA_API_KEY` isn't set at
-  all; a non-null `error` means the fetch itself failed (check the message);
-  `tripCount: 0` with no error usually means the feed returned data but
-  nothing in it matched anything useful. Compare it against
-  `metraStations.tripCount` (the static schedule's own trip count) to gauge
-  how much of the schedule realtime is actually covering.
+  trip updates feed. `keyFingerprint: null` means `METRA_API_KEY` isn't set at
+  all — otherwise it's the key's first two and last two characters plus its
+  length, enough to confirm the server is using the key you think it is
+  without ever exposing the whole thing. `keyHadQuotes: true` means the raw
+  value looked wrapped in quotes and they were stripped automatically — this
+  self-corrects, but is worth knowing about since a wrapped key is a common
+  gotcha with Docker Compose's `env_file:` (it doesn't strip quotes the way a
+  shell or dotenv library would, so `METRA_API_KEY="abc"` in `.env` becomes
+  the literal 5-character value `"abc"`, not `abc`). A non-null `error` means
+  the fetch itself failed (check the message); `tripCount: 0` with no error
+  usually means the feed returned data but nothing in it matched anything
+  useful. Compare it against `metraStations.tripCount` (the static schedule's
+  own trip count) to gauge how much of the schedule realtime is covering.
 
 ## How it works
 
