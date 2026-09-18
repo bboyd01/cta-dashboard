@@ -145,6 +145,68 @@ describe('MetraScheduleIndex.departuresAt', () => {
   })
 })
 
+describe('MetraScheduleIndex.departuresAt realtime overlay', () => {
+  // Only 2026-09-14 (a Monday) is in range, isolating exactly one scheduled
+  // departure at Naperville: trip 't1', stop 'NAP', direction '1', 07:00 local.
+  const index = new MetraScheduleIndex(
+    buildMetraSchedule(feed({ calendar: [calendarWindow('20260914', '20260914')] })),
+  )
+  const now = new Date('2026-09-14T10:00:00Z')
+  const realtimeFor = (delaySeconds: number | null, predictedAt: string | null = null, skipped = false) =>
+    new Map([['t1', new Map([['NAP', { skipped, delaySeconds, predictedAt }]])]])
+
+  it('shifts the arrival by the reported delay and flags it delayed', () => {
+    const [departure] = index.departuresAt('Naperville', now, realtimeFor(300))
+    expect(departure.isScheduled).toBe(false)
+    expect(departure.isDelayed).toBe(true)
+    // Scheduled 12:00:00Z + 300s.
+    expect(departure.arrivalAt).toBe('2026-09-14T12:05:00.000Z')
+  })
+
+  it('a live but on-time trip is no longer "scheduled" and is not "delayed"', () => {
+    const [departure] = index.departuresAt('Naperville', now, realtimeFor(0))
+    expect(departure.isScheduled).toBe(false)
+    expect(departure.isDelayed).toBe(false)
+    expect(departure.arrivalAt).toBe('2026-09-14T12:00:00.000Z')
+  })
+
+  it('an absolute predicted time overrides the scheduled time directly', () => {
+    const [departure] = index.departuresAt(
+      'Naperville', now, realtimeFor(null, '2026-09-14T12:09:00.000Z'),
+    )
+    expect(departure.arrivalAt).toBe('2026-09-14T12:09:00.000Z')
+    expect(departure.isDelayed).toBe(true)
+  })
+
+  it('drops a departure the realtime feed marks skipped', () => {
+    expect(index.departuresAt('Naperville', now, realtimeFor(null, null, true))).toEqual([])
+  })
+
+  it('a delay under a minute does not count as delayed', () => {
+    const [departure] = index.departuresAt('Naperville', now, realtimeFor(30))
+    expect(departure.isDelayed).toBe(false)
+  })
+
+  it('falls back to the scheduled time when realtime has nothing for this trip', () => {
+    const empty = new Map()
+    const [departure] = index.departuresAt('Naperville', now, empty)
+    expect(departure.isScheduled).toBe(true)
+    expect(departure.isDelayed).toBe(false)
+    expect(departure.arrivalAt).toBe('2026-09-14T12:00:00.000Z')
+  })
+
+  it('falls back to the scheduled time when realtime knows the trip but not this stop', () => {
+    const otherStopOnly = new Map([['t1', new Map([['CUS', { skipped: false, delaySeconds: 300, predictedAt: null }]])]])
+    const [departure] = index.departuresAt('Naperville', now, otherStopOnly)
+    expect(departure.isScheduled).toBe(true)
+  })
+
+  it('with no realtime argument at all, behaves exactly as schedule-only', () => {
+    const [departure] = index.departuresAt('Naperville', now)
+    expect(departure.isScheduled).toBe(true)
+  })
+})
+
 describe('loadMetraSchedule', () => {
   let dir: string
   const file = () => path.join(dir, 'metra-schedule.json')

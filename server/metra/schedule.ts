@@ -1,43 +1,40 @@
 /**
  * Metra schedule reference data, built from the GTFS static feed.
  *
- * Metra's realtime API reports delays, but this dashboard deliberately shows
- * only scheduled times for Metra (see the card picker copy) — Metra service is
- * reliable enough that the added complexity of a second, delay-aware code path
- * is not worth it yet. So the only Metra data this file needs from GTFS is the
+ * The static feed alone gives every departure a scheduled time. `departuresAt`
+ * optionally overlays a `MetraRealtimeIndex` (see server/metra/realtime.ts) on
+ * top of that, matched by (trip_id, stop_id): a trip the realtime feed knows
+ * about gets its live delay or predicted time and `isScheduled: false`; a trip
+ * it doesn't (not running yet, or the feed is unavailable) keeps its plain
+ * scheduled time. So the only Metra data *this* file needs from GTFS is the
  * schedule: which lines call at which stations, in which direction, and at
- * what time of day, on which days.
+ * what time of day, on which days -- plus, now, the raw trip and stop ids
+ * needed to look a trip up in that realtime index.
  *
  * A GTFS stop_id is a physical platform, not a direction — unlike the CTA
  * where a stop_id is already one-directional. To keep the card picker's
  * line -> station -> direction flow identical to trains, each (stop_id,
  * direction_id) pair is treated as its own "stop" here, with a synthetic id
  * of `${stop_id}:${direction_id}`.
- *
- * Metra also publishes GTFS-realtime feeds (protobuf, same METRA_API_KEY)
- * that this dashboard does not use yet, for the delay-free reason above:
- *   https://gtfspublic.metrarr.com/gtfs/public/alerts
- *   https://gtfspublic.metrarr.com/gtfs/public/positions
- *   https://gtfspublic.metrarr.com/gtfs/public/tripupdates
- * `alerts` in particular (service disruptions, not per-train delays) would be
- * a natural, low-complexity first use if that changes.
  */
 
 import type { Station, StationStop, Departure } from '../../shared/types.ts'
 import { normalizeMetraLineId, type MetraLineId } from '../../shared/metraLines.ts'
 import { CHICAGO, weekday, wallClockToInstant, zonedParts } from '../../shared/time.ts'
 import { fetchGtfsFeed, fetchPublishedVersion, type GtfsFeed } from './gtfs.ts'
+import type { MetraRealtimeIndex } from './realtime.ts'
 import { SEED_METRA_SCHEDULE } from './seed.ts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
 export type MetraTrip = {
+  tripId: string
   routeId: MetraLineId
   serviceId: string
   directionId: '0' | '1'
   headsign: string
-  /** Sorted by GTFS stop_sequence. */
-  stops: { platformId: string; seconds: number }[]
+  /** Sorted by GTFS stop_sequence. `stopId` is the raw GTFS id, for matching against realtime updates. */
+  stops: { platformId: string; stopId: string; seconds: number }[]
 }
 
 type CalendarEntry = { days: boolean[]; startDate: string; endDate: string }
@@ -63,6 +60,8 @@ const SCHEDULE_URL = 'https://schedules.metrarail.com/gtfs/schedule.zip'
 const PUBLISHED_URL = 'https://schedules.metrarail.com/gtfs/published.txt'
 
 const MAX_AGE_MS = 24 * 60 * 60 * 1000
+/** A prediction under a minute later than scheduled reads as "on time", not "delayed". */
+const DELAY_THRESHOLD_MS = 60_000
 const CALENDAR_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
 function parseGtfsTime(value: string): number | null {
@@ -165,10 +164,11 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
       }
       platform.lines.add(meta.routeId)
       platform.headsigns.set(meta.headsign, (platform.headsigns.get(meta.headsign) ?? 0) + 1)
-      return { platformId, seconds }
+      return { platformId, stopId, seconds }
     })
 
     trips.push({
+      tripId,
       routeId: meta.routeId,
       serviceId: meta.serviceId,
       directionId: meta.directionId,
@@ -338,12 +338,46 @@ export class MetraScheduleIndex {
   }
 
   /**
-   * Every scheduled departure at a station, every line and direction. Looks a
-   * day either side of `now` so a trip whose GTFS time crosses midnight (an
-   * owl trip still running on yesterday's service day, or tomorrow's first
-   * departure) is not missed; callers prune anything not actually upcoming.
+   * Resolves one stop's arrival against the realtime feed, if any. Returns
+   * `null` when the train is skipping this stop after all -- the caller drops
+   * that departure entirely.
    */
-  departuresAt(mapId: string, now: Date): Departure[] {
+  #resolveArrival(
+    trip: MetraTrip,
+    stop: { stopId: string },
+    scheduledAt: Date,
+    realtime: MetraRealtimeIndex | undefined,
+  ): { arrivalAt: Date; isScheduled: boolean; isDelayed: boolean } | null {
+    const status = realtime?.get(trip.tripId)?.get(stop.stopId)
+    if (!status) return { arrivalAt: scheduledAt, isScheduled: true, isDelayed: false }
+    if (status.skipped) return null
+
+    const predicted =
+      status.predictedAt != null
+        ? new Date(status.predictedAt)
+        : status.delaySeconds != null
+          ? new Date(scheduledAt.getTime() + status.delaySeconds * 1000)
+          : null
+    // The realtime feed knows this trip but has nothing for this stop yet --
+    // Metra often only starts reporting a trip's stops once it is under way.
+    if (!predicted) return { arrivalAt: scheduledAt, isScheduled: true, isDelayed: false }
+
+    return {
+      arrivalAt: predicted,
+      isScheduled: false,
+      isDelayed: predicted.getTime() - scheduledAt.getTime() >= DELAY_THRESHOLD_MS,
+    }
+  }
+
+  /**
+   * Every departure at a station, every line and direction, scheduled times
+   * overlaid with live delays from `realtime` where available (see
+   * server/metra/realtime.ts). Looks a day either side of `now` so a trip
+   * whose GTFS time crosses midnight (an owl trip still running on
+   * yesterday's service day, or tomorrow's first departure) is not missed;
+   * callers prune anything not actually upcoming.
+   */
+  departuresAt(mapId: string, now: Date, realtime?: MetraRealtimeIndex): Departure[] {
     const station = this.#byMapId.get(mapId)
     if (!station) return []
     const platformIds = new Set(station.stops.map((s) => s.stopId))
@@ -359,7 +393,7 @@ export class MetraScheduleIndex {
         if (!this.#isServiceActive(trip.serviceId, dateKey, weekdayIndex)) continue
         for (const stop of trip.stops) {
           if (!platformIds.has(stop.platformId)) continue
-          const arrivalAt = wallClockToInstant(
+          const scheduledAt = wallClockToInstant(
             {
               year: parts.year,
               month: parts.month,
@@ -370,13 +404,16 @@ export class MetraScheduleIndex {
             },
             CHICAGO,
           )
+          const resolved = this.#resolveArrival(trip, stop, scheduledAt, realtime)
+          if (!resolved) continue
+
           departures.push({
             route: trip.routeId,
             destination: trip.headsign || 'Scheduled',
-            arrivalAt: arrivalAt.toISOString(),
+            arrivalAt: resolved.arrivalAt.toISOString(),
             isApproaching: false,
-            isDelayed: false,
-            isScheduled: true,
+            isDelayed: resolved.isDelayed,
+            isScheduled: resolved.isScheduled,
             stopId: stop.platformId,
             direction: trip.directionId,
           })

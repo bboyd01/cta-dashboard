@@ -41,11 +41,12 @@ Three separate keys, each with its own quota:
 Approval takes a day or two. A missing key is not fatal: the dashboard still
 runs and the affected cards report the problem.
 
-Metra cards only ever show *scheduled* times, not live predictions — Metra's
-realtime API also reports delays, but the schedule is reliable enough that the
-dashboard doesn't need that extra complexity yet. The schedule comes from
-Metra's GTFS static feed, refreshed once a day (see `npm run fetch:metra` to
-force a refresh).
+Metra cards start from the GTFS static schedule (refreshed once a day — see
+`npm run fetch:metra` to force a refresh) and overlay live delays from Metra's
+GTFS-realtime trip updates feed where available: a departure reads `sched`
+until realtime picks up its trip, then switches to a live time and turns red
+once it's a minute or more late. A trip realtime hasn't picked up yet (usually
+anything more than an hour or so out) just shows its scheduled time.
 
 ## Discord digests
 
@@ -83,7 +84,7 @@ alongside it — no database, no worker, no cache.
 | Health check | `GET /api/health` — already declared in the image |
 | Persistent storage | Mounted at **`/data`** |
 | Runs as | uid **1000**, non-root |
-| Outbound access | `lapi.transitchicago.com`, `ctabustracker.com`, `data.cityofchicago.org`, `schedules.metrarail.com`, and `discord.com` if you use digests |
+| Outbound access | `lapi.transitchicago.com`, `ctabustracker.com`, `data.cityofchicago.org`, `schedules.metrarail.com`, `gtfspublic.metrarr.com`, and `discord.com` if you use digests |
 
 Set the environment variables from the [Environment](#environment) table below.
 `DATA_DIR` is already `/data` in the image — leave it alone unless you mount

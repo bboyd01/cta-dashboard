@@ -135,7 +135,26 @@ export function createMockProvider(
     },
 
     async metraArrivals(mapId: string): Promise<Departure[]> {
-      return metraStations().departuresAt(mapId, new Date())
+      const now = new Date()
+      const scheduled = metraStations().departuresAt(mapId, now)
+      // A real GTFS-realtime feed only tracks a trip once it is close to
+      // running, so this leaves anything further out as plain schedule and
+      // only overlays a synthetic live status -- on time, or a few minutes
+      // late -- on the near-term departures, the same mix Metra's own feed
+      // produces.
+      return scheduled.map((departure) => {
+        const minutesOut = (new Date(departure.arrivalAt).getTime() - now.getTime()) / 60_000
+        if (minutesOut > 90) return departure
+        const seed = seedOf(departure.stopId + departure.route + departure.arrivalAt)
+        if (seed % 5 !== 0) return { ...departure, isScheduled: false, isDelayed: false }
+        const delayMinutes = 2 + (seed % 10)
+        return {
+          ...departure,
+          arrivalAt: new Date(new Date(departure.arrivalAt).getTime() + delayMinutes * 60_000).toISOString(),
+          isScheduled: false,
+          isDelayed: true,
+        }
+      })
     },
 
     async busStops(route: string, direction: string): Promise<BusStop[]> {
