@@ -35,7 +35,8 @@ export type MetraTrip = {
   routeId: MetraLineId
   serviceId: string
   directionId: '0' | '1'
-  headsign: string
+  /** This trip's own real terminus station name (see `buildMetraSchedule`), not Metra's raw trip_headsign. */
+  destination: string
   /** 'HH:MM:SS' of this trip's first stop — GTFS-realtime's own trip-matching fallback when trip_id spellings differ. */
   startTime: string
   /** Sorted by GTFS stop_sequence. `stopId`/`sequence` are the raw GTFS values, for matching against realtime updates. */
@@ -78,18 +79,6 @@ function parseGtfsTime(value: string): number | null {
 /** Inverse of `parseGtfsTime`, for reconstructing a trip's GTFS-RT `start_time`. Exported for the seed fixture. */
 export function formatGtfsTime(seconds: number): string {
   return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`
-}
-
-function bestHeadsign(headsigns: Map<string, number>): string {
-  let best = ''
-  let bestCount = 0
-  for (const [headsign, count] of headsigns) {
-    if (headsign && count > bestCount) {
-      best = headsign
-      bestCount = count
-    }
-  }
-  return best
 }
 
 /** Exported for tests: turns a parsed GTFS feed into our compact schedule shape. */
@@ -162,9 +151,15 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
   }
 
   const trips: MetraTrip[] = []
+  // Keyed by stop + direction + real terminus, not just stop + direction: two
+  // lines (or two patterns of the same line -- a short-turn vs a full run)
+  // that share a platform but end up at different real termini must stay
+  // separate stops, each with its own correct destination label. Two that
+  // happen to share both the platform and the terminus still merge into one,
+  // same as the CTA does for lines that share a physically identical platform.
   const platforms = new Map<
     string,
-    { stopId: string; directionId: '0' | '1'; lines: Set<MetraLineId>; headsigns: Map<string, number> }
+    { stopId: string; directionId: '0' | '1'; terminusName: string; lines: Set<MetraLineId> }
   >()
 
   for (const [tripId, meta] of tripMeta) {
@@ -172,15 +167,21 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
     if (!stopTimes || stopTimes.length === 0) continue
     stopTimes.sort((a, b) => a.sequence - b.sequence)
 
+    // A train's real destination is wherever its own schedule actually ends --
+    // not Metra's free-text trip_headsign, which can be stale, inconsistent
+    // between short-turn and full-length patterns, or (rarely) just wrong.
+    // Every trip's own stop_times.txt entries are ground truth by construction.
+    const terminusStopId = stopTimes[stopTimes.length - 1].stopId
+    const destination = stopNames.get(terminusStopId) ?? (meta.headsign || terminusStopId)
+
     const stops = stopTimes.map(({ stopId, sequence, seconds }) => {
-      const platformId = `${stopId}:${meta.directionId}`
+      const platformId = `${stopId}:${meta.directionId}:${terminusStopId}`
       let platform = platforms.get(platformId)
       if (!platform) {
-        platform = { stopId, directionId: meta.directionId, lines: new Set(), headsigns: new Map() }
+        platform = { stopId, directionId: meta.directionId, terminusName: destination, lines: new Set() }
         platforms.set(platformId, platform)
       }
       platform.lines.add(meta.routeId)
-      platform.headsigns.set(meta.headsign, (platform.headsigns.get(meta.headsign) ?? 0) + 1)
       return { platformId, stopId, sequence, seconds }
     })
 
@@ -190,14 +191,14 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
       routeId: meta.routeId,
       serviceId: meta.serviceId,
       directionId: meta.directionId,
-      headsign: meta.headsign,
+      destination,
       startTime: formatGtfsTime(stops[0].seconds),
       stops,
     })
   }
 
   const byName = new Map<string, Station>()
-  for (const platform of platforms.values()) {
+  for (const [platformId, platform] of platforms) {
     const name = stopNames.get(platform.stopId) ?? platform.stopId
     let station = byName.get(name)
     if (!station) {
@@ -206,9 +207,12 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
     }
     const lines = [...platform.lines].sort()
     for (const line of lines) if (!station.lines.includes(line)) station.lines.push(line)
-    const headsign = bestHeadsign(platform.headsigns)
-    const label = headsign ? `${headsign}-bound` : platform.directionId === '1' ? 'Inbound' : 'Outbound'
-    const stop: StationStop = { stopId: `${platform.stopId}:${platform.directionId}`, direction: platform.directionId, label, lines }
+    const stop: StationStop = {
+      stopId: platformId,
+      direction: platform.directionId,
+      label: `${platform.terminusName}-bound`,
+      lines,
+    }
     station.stops.push(stop)
   }
 
@@ -431,7 +435,7 @@ export class MetraScheduleIndex {
 
           departures.push({
             route: trip.routeId,
-            destination: trip.headsign || 'Scheduled',
+            destination: trip.destination || 'Scheduled',
             arrivalAt: resolved.arrivalAt.toISOString(),
             isApproaching: false,
             isDelayed: resolved.isDelayed,

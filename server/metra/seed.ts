@@ -96,7 +96,7 @@ export const SEED_METRA_SCHEDULE: MetraScheduleFile = {
         routeId: 'BNSF' as const,
         serviceId: 'SEED',
         directionId: (i < 3 ? '1' : '0') as '0' | '1',
-        headsign: i < 3 ? 'Chicago Union Station' : 'Aurora',
+        destination: i < 3 ? 'Chicago Union Station' : 'Aurora',
         startTime: formatGtfsTime(stops[0].seconds),
         stops,
       }
@@ -120,7 +120,7 @@ export const SEED_METRA_SCHEDULE: MetraScheduleFile = {
         routeId: 'UP-N' as const,
         serviceId: 'SEED',
         directionId: (i < 3 ? '1' : '0') as '0' | '1',
-        headsign: i < 3 ? 'Ogilvie Transportation Center' : 'Kenosha',
+        destination: i < 3 ? 'Ogilvie Transportation Center' : 'Kenosha',
         startTime: formatGtfsTime(stops[0].seconds),
         stops,
       }

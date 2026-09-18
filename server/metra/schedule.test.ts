@@ -43,8 +43,64 @@ describe('buildMetraSchedule', () => {
     const naperville = schedule.stations.find((s) => s.name === 'Naperville')!
     expect(naperville.lines).toEqual(['BNSF'])
     expect(naperville.stops).toEqual([
-      { stopId: 'NAP:1', direction: '1', label: 'Chicago Union Station-bound', lines: ['BNSF'] },
+      { stopId: 'NAP:1:CUS', direction: '1', label: 'Chicago Union Station-bound', lines: ['BNSF'] },
     ])
+  })
+
+  it('derives destination from the trip\'s own final stop, ignoring a wrong trip_headsign', () => {
+    // Metra's free-text trip_headsign says 'Waukegan' but this trip's own
+    // stop_times.txt actually ends at Chicago Union Station -- the schedule
+    // data is ground truth, not the headsign text.
+    const schedule = buildMetraSchedule(
+      feed({ trips: [{ trip_id: 't1', route_id: 'BNSF', service_id: 'WEEKDAY', direction_id: '1', trip_headsign: 'Waukegan' }] }),
+    )
+    expect(schedule.trips[0].destination).toBe('Chicago Union Station')
+  })
+
+  it('keeps two lines sharing a platform+direction separate when they end at different termini', () => {
+    // UP-N and UP-NW both call at a shared 'Clybourn' platform outbound, but
+    // end at different real termini -- this must not collapse into one
+    // direction option labeled by whichever line has more trips.
+    const schedule = buildMetraSchedule({
+      routes: [
+        { route_id: 'UP-N', route_long_name: 'Union Pacific North' },
+        { route_id: 'UP-NW', route_long_name: 'Union Pacific Northwest' },
+      ],
+      stops: [
+        { stop_id: 'CLY', stop_name: 'Clybourn' },
+        { stop_id: 'WKG', stop_name: 'Waukegan' },
+        { stop_id: 'HVD', stop_name: 'Harvard' },
+      ],
+      trips: [
+        { trip_id: 'upn1', route_id: 'UP-N', service_id: 'WEEKDAY', direction_id: '1', trip_headsign: 'Waukegan' },
+        { trip_id: 'upnw1', route_id: 'UP-NW', service_id: 'WEEKDAY', direction_id: '1', trip_headsign: 'Harvard' },
+      ],
+      stopTimes: [
+        { trip_id: 'upn1', stop_id: 'CLY', arrival_time: '07:00:00', stop_sequence: '1' },
+        { trip_id: 'upn1', stop_id: 'WKG', arrival_time: '08:00:00', stop_sequence: '2' },
+        { trip_id: 'upnw1', stop_id: 'CLY', arrival_time: '07:05:00', stop_sequence: '1' },
+        { trip_id: 'upnw1', stop_id: 'HVD', arrival_time: '08:10:00', stop_sequence: '2' },
+      ],
+      calendar: [
+        {
+          service_id: 'WEEKDAY',
+          monday: '1', tuesday: '1', wednesday: '1', thursday: '1', friday: '1',
+          saturday: '0', sunday: '0',
+          start_date: '20260101', end_date: '20261231',
+        },
+      ],
+      calendarDates: [],
+    })
+
+    const clybourn = schedule.stations.find((s) => s.name === 'Clybourn')!
+    expect(clybourn.lines).toEqual(['UP-N', 'UP-NW'])
+    expect(clybourn.stops).toHaveLength(2)
+    expect(clybourn.stops.find((s) => s.lines.includes('UP-N'))).toMatchObject({
+      label: 'Waukegan-bound', lines: ['UP-N'],
+    })
+    expect(clybourn.stops.find((s) => s.lines.includes('UP-NW'))).toMatchObject({
+      label: 'Harvard-bound', lines: ['UP-NW'],
+    })
   })
 
   it('drops trips on routes it does not recognize', () => {
