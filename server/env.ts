@@ -7,8 +7,10 @@ export type Env = {
   dataDir: string
   configPath: string
   stationsPath: string
+  metraSchedulePath: string
   trainApiKey: string
   busApiKey: string
+  metraApiKey: string
   discordWebhookUrl: string
   mock: boolean
 }
@@ -26,8 +28,10 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     dataDir,
     configPath: path.join(dataDir, 'config.json'),
     stationsPath: path.join(dataDir, 'stations.json'),
+    metraSchedulePath: path.join(dataDir, 'metra-schedule.json'),
     trainApiKey: source.CTA_TRAIN_API_KEY?.trim() ?? '',
     busApiKey: source.CTA_BUS_API_KEY?.trim() ?? '',
+    metraApiKey: source.METRA_API_KEY?.trim() ?? '',
     discordWebhookUrl: source.DISCORD_WEBHOOK_URL?.trim() ?? '',
     mock,
   }
@@ -50,6 +54,7 @@ export function envWarnings(env: Env): string[] {
   } else {
     if (!env.trainApiKey) warnings.push('CTA_TRAIN_API_KEY is not set — train cards will not load.')
     if (!env.busApiKey) warnings.push('CTA_BUS_API_KEY is not set — bus cards will not load.')
+    if (!env.metraApiKey) warnings.push('METRA_API_KEY is not set — Metra cards will not load.')
   }
   if (!env.discordWebhookUrl) {
     warnings.push('DISCORD_WEBHOOK_URL is not set — Discord digests are disabled.')

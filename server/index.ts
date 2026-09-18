@@ -12,6 +12,7 @@ import { ConfigStore, ensureDataDir } from './config-store.ts'
 import { TtlCache } from './cache.ts'
 import { createProvider } from './cta/index.ts'
 import { StationIndex, loadStations } from './stations/index.ts'
+import { MetraScheduleIndex, loadMetraSchedule } from './metra/schedule.ts'
 import { createApiRouter } from './routes/api.ts'
 import { startDigestScheduler } from './digest/scheduler.ts'
 
@@ -57,8 +58,17 @@ export async function createServer() {
     )
   }
 
+  let metraStations = new MetraScheduleIndex(
+    await loadMetraSchedule(env.metraSchedulePath, env.metraApiKey),
+  )
+  if (metraStations.isSeed) {
+    console.warn(
+      '[metra] running on the bundled seed — only a few stations are offered in the picker.',
+    )
+  }
+
   const cache = new TtlCache(PREDICTION_TTL_MS)
-  const provider = createProvider(env, () => stations)
+  const provider = createProvider(env, () => stations, () => metraStations)
 
   const app = express()
   app.use(express.json({ limit: '256kb' }))
@@ -69,6 +79,7 @@ export async function createServer() {
       provider,
       cache,
       stations: () => stations,
+      metraStations: () => metraStations,
       mock: env.mock,
       discordConfigured: Boolean(env.discordWebhookUrl),
     }),

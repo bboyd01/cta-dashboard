@@ -6,10 +6,12 @@
 import express, { type Router } from 'express'
 import type { Config } from '../../shared/types.ts'
 import { LINES } from '../../shared/lines.ts'
+import { METRA_LINES } from '../../shared/metraLines.ts'
 import type { ConfigStore } from '../config-store.ts'
 import type { TtlCache } from '../cache.ts'
 import type { CtaProvider } from '../cta/types.ts'
 import type { StationIndex } from '../stations/index.ts'
+import type { MetraScheduleIndex } from '../metra/schedule.ts'
 import { loadDepartures } from '../departures.ts'
 
 export type ApiDeps = {
@@ -17,6 +19,7 @@ export type ApiDeps = {
   provider: CtaProvider
   cache: TtlCache
   stations: () => StationIndex
+  metraStations: () => MetraScheduleIndex
   mock: boolean
   discordConfigured: boolean
 }
@@ -43,6 +46,7 @@ export function createApiRouter(deps: ApiDeps): Router {
 
   router.get('/health', (_req, res) => {
     const stations = deps.stations()
+    const metraStations = deps.metraStations()
     res.json({
       ok: true,
       mock: deps.mock,
@@ -51,6 +55,11 @@ export function createApiRouter(deps: ApiDeps): Router {
         source: stations.file.source,
         fetchedAt: stations.file.fetchedAt,
         count: stations.stations.length,
+      },
+      metraStations: {
+        source: metraStations.file.source,
+        fetchedAt: metraStations.file.fetchedAt,
+        count: metraStations.stations.length,
       },
     })
   })
@@ -83,6 +92,19 @@ export function createApiRouter(deps: ApiDeps): Router {
   router.get('/catalog/stations', (req, res) => {
     const line = typeof req.query.line === 'string' ? req.query.line : ''
     const index = deps.stations()
+    res.json({
+      isSeed: index.isSeed,
+      stations: line ? index.byLine(line) : index.stations,
+    })
+  })
+
+  router.get('/catalog/metra/lines', (_req, res) => {
+    res.json(Object.values(METRA_LINES).map(({ id, name, color }) => ({ id, name, color })))
+  })
+
+  router.get('/catalog/metra/stations', (req, res) => {
+    const line = typeof req.query.line === 'string' ? req.query.line : ''
+    const index = deps.metraStations()
     res.json({
       isSeed: index.isSeed,
       stations: line ? index.byLine(line) : index.stations,

@@ -4,7 +4,7 @@ A personal departure board for Chicago trains and buses. One card per route, sto
 and direction, refreshing every 30 seconds, with optional Discord digests so your
 phone tells you when to leave.
 
-- Train and bus cards, colour-coded by CTA line
+- Train, Metra and bus cards, colour-coded by line
 - Direction per card: either terminal, or both at once
 - Countdown (`7 min`) or literal arrival time (`6:42 PM`)
 - Layouts from one column on a phone to four on a desktop
@@ -30,15 +30,22 @@ npm run dev
 
 ## API keys
 
-Two separate keys, with separate daily quotas:
+Three separate keys, each with its own quota:
 
 | Variable | Where to get it |
 | --- | --- |
 | `CTA_TRAIN_API_KEY` | <https://www.transitchicago.com/developers/traintrackerapply/> |
 | `CTA_BUS_API_KEY` | <https://www.transitchicago.com/developers/bustracker/> |
+| `METRA_API_KEY` | <https://metra.com/metra-gtfs-api> |
 
 Approval takes a day or two. A missing key is not fatal: the dashboard still
 runs and the affected cards report the problem.
+
+Metra cards only ever show *scheduled* times, not live predictions — Metra's
+realtime API also reports delays, but the schedule is reliable enough that the
+dashboard doesn't need that extra complexity yet. The schedule comes from
+Metra's GTFS static feed, refreshed once a day (see `npm run fetch:metra` to
+force a refresh).
 
 ## Discord digests
 
@@ -76,7 +83,7 @@ alongside it — no database, no worker, no cache.
 | Health check | `GET /api/health` — already declared in the image |
 | Persistent storage | Mounted at **`/data`** |
 | Runs as | uid **1000**, non-root |
-| Outbound access | `lapi.transitchicago.com`, `ctabustracker.com`, `data.cityofchicago.org`, and `discord.com` if you use digests |
+| Outbound access | `lapi.transitchicago.com`, `ctabustracker.com`, `data.cityofchicago.org`, `gtfspublic.metrarr.com`, and `discord.com` if you use digests |
 
 Set the environment variables from the [Environment](#environment) table below.
 `DATA_DIR` is already `/data` in the image — leave it alone unless you mount
@@ -87,8 +94,9 @@ somewhere else.
 Point it at this repo and let it build the `Dockerfile`. Then:
 
 1. **Set the environment variables** in the platform's UI — at minimum
-   `CTA_TRAIN_API_KEY` and `CTA_BUS_API_KEY`, plus `DISCORD_WEBHOOK_URL` if you
-   want digests. Don't commit a `.env`; it's gitignored for a reason.
+   `CTA_TRAIN_API_KEY` and `CTA_BUS_API_KEY`, plus `METRA_API_KEY` for Metra
+   cards and `DISCORD_WEBHOOK_URL` if you want digests. Don't commit a `.env`;
+   it's gitignored for a reason.
 2. **Add persistent storage mounted at `/data`.** Without it your cards, display
    options and digest rules are wiped on every redeploy, and the station list is
    re-fetched from scratch each time.
@@ -128,14 +136,16 @@ docker run -d --name cta-dashboard --restart unless-stopped \
   -v cta-data:/data \
   -e CTA_TRAIN_API_KEY=... \
   -e CTA_BUS_API_KEY=... \
+  -e METRA_API_KEY=... \
   -e DISCORD_WEBHOOK_URL=... \
   cta-dashboard
 ```
 
 ### Persistent data, and the one gotcha
 
-`/data` holds `config.json` (cards, display options, digest rules) and
-`stations.json` (the cached 'L' station list).
+`/data` holds `config.json` (cards, display options, digest rules),
+`stations.json` (the cached 'L' station list), and `metra-schedule.json` (the
+cached Metra GTFS schedule).
 
 A **named volume** inherits the image's ownership and just works. A **host
 directory** (`-v /srv/cta:/data`) is created root-owned, and the container runs
@@ -227,6 +237,7 @@ needs to change.
 | `npm test` | Unit tests |
 | `npm run typecheck` | Type-checks client and server |
 | `npm run fetch:stations` | Refreshes the 'L' station list |
+| `npm run fetch:metra` | Refreshes the Metra schedule |
 
 ## Environment
 
@@ -235,6 +246,7 @@ needs to change.
 | `PORT` | `3000` | `3001` in dev |
 | `CTA_TRAIN_API_KEY` | — | Train Tracker |
 | `CTA_BUS_API_KEY` | — | Bus Tracker |
+| `METRA_API_KEY` | — | Metra GTFS API |
 | `DISCORD_WEBHOOK_URL` | — | Blank disables digests |
 | `DATA_DIR` | `./data` | `/data` in the container; leave as-is there |
 | `CTA_MOCK` | `0` | `1` serves fixtures, no keys needed |

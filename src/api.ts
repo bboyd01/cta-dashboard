@@ -2,15 +2,18 @@
 
 import type { BusRoute, BusStop, CardDepartures, Config, Station } from '../shared/types.ts'
 import type { LineId } from '../shared/lines.ts'
+import type { MetraLineId } from '../shared/metraLines.ts'
 
 export type Health = {
   ok: boolean
   mock: boolean
   discordConfigured: boolean
   stations: { source: 'portal' | 'seed'; fetchedAt: string | null; count: number }
+  metraStations: { source: 'gtfs' | 'seed'; fetchedAt: string | null; count: number }
 }
 
 export type LineSummary = { id: LineId; name: string; color: string }
+export type MetraLineSummary = { id: MetraLineId; name: string; color: string }
 export type StationCatalog = { isSeed: boolean; stations: Station[] }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -34,6 +37,11 @@ export const api = {
   lines: () => request<LineSummary[]>('/catalog/lines'),
   stations: (line?: string) =>
     request<StationCatalog>(`/catalog/stations${line ? `?line=${encodeURIComponent(line)}` : ''}`),
+  metraLines: () => request<MetraLineSummary[]>('/catalog/metra/lines'),
+  metraStations: (line?: string) =>
+    request<StationCatalog>(
+      `/catalog/metra/stations${line ? `?line=${encodeURIComponent(line)}` : ''}`,
+    ),
   busRoutes: () => request<BusRoute[]>('/catalog/bus/routes'),
   busDirections: (route: string) =>
     request<string[]>(`/catalog/bus/directions?rt=${encodeURIComponent(route)}`),

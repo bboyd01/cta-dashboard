@@ -19,6 +19,13 @@ const busCard = (over: Partial<Card> = {}): Card => ({
   ...over,
 })
 
+const metraCard = (over: Partial<Card> = {}): Card => ({
+  id: 'm1', kind: 'metra', route: 'BNSF', title: 'BNSF Railway',
+  stationId: 'Naperville', stationName: 'Naperville', direction: 'Chicago Union Station-bound',
+  stopIds: ['BNSF_NAP:1'],
+  ...over,
+})
+
 const dep = (over: Partial<Departure> = {}): Departure => ({
   route: 'Brn', destination: 'Loop', arrivalAt: '2026-09-11T12:07:00Z',
   isApproaching: false, isDelayed: false, isScheduled: false,
@@ -33,6 +40,7 @@ function provider(over: Partial<CtaProvider> = {}): CtaProvider {
     busRoutes: vi.fn().mockResolvedValue([]),
     busDirections: vi.fn().mockResolvedValue([]),
     busStops: vi.fn().mockResolvedValue([]),
+    metraArrivals: vi.fn().mockResolvedValue([]),
     ...over,
   }
 }
@@ -59,6 +67,21 @@ describe('loadDepartures batching', () => {
     expect(busPredictions).toHaveBeenCalledTimes(2)
     expect(busPredictions.mock.calls[0][0]).toHaveLength(10)
     expect(busPredictions.mock.calls[1][0]).toHaveLength(2)
+  })
+
+  it('makes one call per Metra station for several cards there', async () => {
+    const metraArrivals = vi.fn().mockResolvedValue([
+      dep({ route: 'BNSF', stopId: 'BNSF_NAP:1' }),
+      dep({ route: 'UP-N', stopId: 'BNSF_NAP:1' }),
+    ])
+    const cards = [
+      metraCard({ id: 'a', route: 'BNSF' }),
+      metraCard({ id: 'b', route: 'UP-N', stopIds: ['BNSF_NAP:1'] }),
+    ]
+    const result = await loadDepartures(cards, provider({ metraArrivals }), new TtlCache(30_000), NOW)
+
+    expect(metraArrivals).toHaveBeenCalledTimes(1)
+    expect(result.map((r) => r.departures.length)).toEqual([1, 1])
   })
 
   it('does not re-request a station within the cache window', async () => {

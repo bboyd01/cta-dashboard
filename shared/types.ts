@@ -1,16 +1,16 @@
 /** Types shared by the server, the React client, and the digest formatter. */
 
-export type CardKind = 'train' | 'bus'
+export type CardKind = 'train' | 'bus' | 'metra'
 
 /** A single tile on the dashboard: one route, at one stop, in one direction. */
 export type Card = {
   id: string
   kind: CardKind
-  /** CTA route code: an 'L' line id ('Brn') or a bus route ('49'). */
+  /** Route code: an 'L' line id ('Brn'), a bus route ('49'), or a Metra line id ('UP-N'). */
   route: string
-  /** Heading text, e.g. 'Brown Line' or '#49 Western'. */
+  /** Heading text, e.g. 'Brown Line', '#49 Western', or 'Union Pacific North'. */
   title: string
-  /** Train: the station mapid. Bus: the route's stop-group key. */
+  /** Train and Metra: the station id. Bus: the route's stop-group key. */
   stationId: string
   stationName: string
   /** null means "both directions". */

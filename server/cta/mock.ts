@@ -11,6 +11,7 @@
 import type { BusRoute, BusStop, Departure } from '../../shared/types.ts'
 import type { CtaProvider } from './types.ts'
 import type { StationIndex } from '../stations/index.ts'
+import type { MetraScheduleIndex } from '../metra/schedule.ts'
 
 const TRAIN_DESTINATIONS: Record<string, Record<string, string>> = {
   Red: { N: 'Howard', S: '95th/Dan Ryan' },
@@ -72,7 +73,10 @@ function offsetsFor(stopId: string, now: Date, headway: number, count: number): 
   return offsets.slice(0, count)
 }
 
-export function createMockProvider(stations: () => StationIndex): CtaProvider {
+export function createMockProvider(
+  stations: () => StationIndex,
+  metraStations: () => MetraScheduleIndex,
+): CtaProvider {
   return {
     async trainArrivals(mapId: string): Promise<Departure[]> {
       const station = stations().byMapId(mapId)
@@ -128,6 +132,10 @@ export function createMockProvider(stations: () => StationIndex): CtaProvider {
 
     async busDirections(route: string): Promise<string[]> {
       return BUS_DIRECTIONS[route] ?? ['Northbound', 'Southbound']
+    },
+
+    async metraArrivals(mapId: string): Promise<Departure[]> {
+      return metraStations().departuresAt(mapId, new Date())
     },
 
     async busStops(route: string, direction: string): Promise<BusStop[]> {

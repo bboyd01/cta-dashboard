@@ -13,6 +13,8 @@ export interface CtaProvider {
   busRoutes(): Promise<BusRoute[]>
   busDirections(route: string): Promise<string[]>
   busStops(route: string, direction: string): Promise<BusStop[]>
+  /** Scheduled departures at a Metra station, both directions, every line. */
+  metraArrivals(mapId: string): Promise<Departure[]>
 }
 
 /** Upstream failure with a message safe to show in a card. */

@@ -51,6 +51,19 @@ export async function loadDepartures(
     }),
   )
 
+  // One lookup per station, shared by every Metra card watching it.
+  const metraStationIds = [...new Set(cards.filter((c) => c.kind === 'metra').map((c) => c.stationId))]
+  const metraResults = new Map<string, Departure[] | Error>()
+  await Promise.all(
+    metraStationIds.map(async (mapId) => {
+      try {
+        metraResults.set(mapId, await read(`metra:${mapId}`, () => provider.metraArrivals(mapId)))
+      } catch (error) {
+        metraResults.set(mapId, error instanceof Error ? error : new Error(message(error)))
+      }
+    }),
+  )
+
   // One request per ten bus stops, shared by every bus card using those stops.
   const busStopIds = [...new Set(cards.filter((c) => c.kind === 'bus').flatMap((c) => c.stopIds))]
   const busBatches = chunk(busStopIds, MAX_STOPS_PER_REQUEST)
@@ -74,8 +87,9 @@ export async function loadDepartures(
   return cards.map((card) => {
     const stopIds = new Set(card.stopIds)
 
-    if (card.kind === 'train') {
-      const result = stationResults.get(card.stationId)
+    if (card.kind === 'train' || card.kind === 'metra') {
+      const results = card.kind === 'train' ? stationResults : metraResults
+      const result = results.get(card.stationId)
       if (result instanceof Error) return { cardId: card.id, departures: [], error: result.message }
       // A station serves several lines, so filter to this card's line as well as
       // its stops -- the stop id alone is not enough at a shared platform.

@@ -12,14 +12,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
-    "fetch:stations": "node --experimental-strip-types scripts/fetch-stations.ts"
+    "fetch:stations": "node --experimental-strip-types scripts/fetch-stations.ts",
+    "fetch:metra": "node --experimental-strip-types scripts/fetch-metra.ts"
   },
   "dependencies": {
+    "adm-zip": "^0.6.1",
     "express": "^5.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/express": "^5.0.0",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
