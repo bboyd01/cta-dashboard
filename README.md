@@ -83,7 +83,7 @@ alongside it — no database, no worker, no cache.
 | Health check | `GET /api/health` — already declared in the image |
 | Persistent storage | Mounted at **`/data`** |
 | Runs as | uid **1000**, non-root |
-| Outbound access | `lapi.transitchicago.com`, `ctabustracker.com`, `data.cityofchicago.org`, `gtfspublic.metrarr.com`, and `discord.com` if you use digests |
+| Outbound access | `lapi.transitchicago.com`, `ctabustracker.com`, `data.cityofchicago.org`, `schedules.metrarail.com`, and `discord.com` if you use digests |
 
 Set the environment variables from the [Environment](#environment) table below.
 `DATA_DIR` is already `/data` in the image — leave it alone unless you mount

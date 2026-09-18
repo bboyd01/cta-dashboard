@@ -68,13 +68,11 @@ export type GtfsFeed = {
 const FETCH_TIMEOUT_MS = 60_000
 
 /**
- * Downloads and unpacks Metra's GTFS static feed.
- *
- * Metra's GTFS API gates the static schedule zip behind the same key issued
- * for the realtime feeds; it accepts the key as a bearer token or as an
- * `api_token` query parameter, so both are sent for compatibility.
+ * GETs a Metra GTFS URL with the API key attached both ways Metra's docs
+ * describe accepting it (a bearer token, or an `api_token` query parameter),
+ * for compatibility across the realtime and static endpoints.
  */
-export async function fetchGtfsFeed(url: string, apiKey: string): Promise<GtfsFeed> {
+async function fetchMetra(url: string, apiKey: string, label: string): Promise<Response> {
   const target = new URL(url)
   if (apiKey && !target.searchParams.has('api_token')) {
     target.searchParams.set('api_token', apiKey)
@@ -87,15 +85,29 @@ export async function fetchGtfsFeed(url: string, apiKey: string): Promise<GtfsFe
     })
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'TimeoutError'
-    throw new Error(timedOut ? 'Metra GTFS feed timed out' : 'Metra GTFS feed unreachable', {
-      cause: error,
-    })
+    throw new Error(timedOut ? `${label} timed out` : `${label} unreachable`, { cause: error })
   }
   if (!response.ok) {
-    throw new Error(`Metra GTFS feed returned HTTP ${response.status}`)
+    throw new Error(`${label} returned HTTP ${response.status}`)
   }
+  return response
+}
+
+/** Downloads and unpacks Metra's GTFS static schedule zip. */
+export async function fetchGtfsFeed(url: string, apiKey: string): Promise<GtfsFeed> {
+  const response = await fetchMetra(url, apiKey, 'Metra GTFS feed')
   const buffer = Buffer.from(await response.arrayBuffer())
   return readGtfsZip(buffer)
+}
+
+/**
+ * Fetches Metra's `published.txt` — a small text file identifying which
+ * build of the schedule is currently live. Comparing it lets us skip
+ * re-downloading and re-parsing the full schedule zip when nothing changed.
+ */
+export async function fetchPublishedVersion(url: string, apiKey: string): Promise<string> {
+  const response = await fetchMetra(url, apiKey, 'Metra published.txt')
+  return (await response.text()).trim()
 }
 
 /** Exported for tests: unpacks an already-downloaded GTFS zip buffer. */

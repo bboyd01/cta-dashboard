@@ -23,6 +23,7 @@ function trip(times: [number, number][]): number[] {
 export const SEED_METRA_SCHEDULE: MetraScheduleFile = {
   source: 'seed',
   fetchedAt: null,
+  publishedVersion: null,
   calendar: { SEED: ALWAYS },
   exceptions: {},
   stations: [

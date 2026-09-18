@@ -13,12 +13,20 @@
  * line -> station -> direction flow identical to trains, each (stop_id,
  * direction_id) pair is treated as its own "stop" here, with a synthetic id
  * of `${stop_id}:${direction_id}`.
+ *
+ * Metra also publishes GTFS-realtime feeds (protobuf, same METRA_API_KEY)
+ * that this dashboard does not use yet, for the delay-free reason above:
+ *   https://gtfspublic.metrarr.com/gtfs/public/alerts
+ *   https://gtfspublic.metrarr.com/gtfs/public/positions
+ *   https://gtfspublic.metrarr.com/gtfs/public/tripupdates
+ * `alerts` in particular (service disruptions, not per-train delays) would be
+ * a natural, low-complexity first use if that changes.
  */
 
 import type { Station, StationStop, Departure } from '../../shared/types.ts'
 import { normalizeMetraLineId, type MetraLineId } from '../../shared/metraLines.ts'
 import { CHICAGO, weekday, wallClockToInstant, zonedParts } from '../../shared/time.ts'
-import { fetchGtfsFeed, type GtfsFeed } from './gtfs.ts'
+import { fetchGtfsFeed, fetchPublishedVersion, type GtfsFeed } from './gtfs.ts'
 import { SEED_METRA_SCHEDULE } from './seed.ts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -37,6 +45,8 @@ type CalendarEntry = { days: boolean[]; startDate: string; endDate: string }
 export type MetraScheduleFile = {
   source: 'gtfs' | 'seed'
   fetchedAt: string | null
+  /** The `published.txt` build id this schedule was parsed from, if known. */
+  publishedVersion: string | null
   stations: Station[]
   trips: MetraTrip[]
   calendar: Record<string, CalendarEntry>
@@ -45,13 +55,12 @@ export type MetraScheduleFile = {
 }
 
 /**
- * Metra's published GTFS static schedule feed.
- *
- * Metra's developer portal gates this behind the same API key as the realtime
- * feeds (see server/metra/gtfs.ts). If Metra changes the path, this is the one
- * place to update it.
+ * Metra's published GTFS static schedule feed. If Metra changes these paths,
+ * this is the one place to update them.
  */
-const GTFS_URL = 'https://gtfspublic.metrarr.com/gtfs/public/schedule.zip'
+const SCHEDULE_URL = 'https://schedules.metrarail.com/gtfs/schedule.zip'
+/** A small text file identifying the current schedule build; see `fetchPublishedVersion`. */
+const PUBLISHED_URL = 'https://schedules.metrarail.com/gtfs/published.txt'
 
 const MAX_AGE_MS = 24 * 60 * 60 * 1000
 const CALENDAR_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -192,6 +201,7 @@ export function buildMetraSchedule(feed: GtfsFeed): MetraScheduleFile {
   return {
     source: 'gtfs',
     fetchedAt: new Date().toISOString(),
+    publishedVersion: null,
     stations: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)),
     trips,
     calendar,
@@ -210,6 +220,7 @@ async function readCached(filePath: string): Promise<MetraScheduleFile | null> {
     return {
       source: parsed.source === 'gtfs' ? 'gtfs' : 'seed',
       fetchedAt: typeof parsed.fetchedAt === 'string' ? parsed.fetchedAt : null,
+      publishedVersion: typeof parsed.publishedVersion === 'string' ? parsed.publishedVersion : null,
       stations: parsed.stations as Station[],
       trips: parsed.trips as MetraTrip[],
       calendar: parsed.calendar ?? {},
@@ -218,6 +229,13 @@ async function readCached(filePath: string): Promise<MetraScheduleFile | null> {
   } catch {
     return null
   }
+}
+
+async function writeCache(filePath: string, file: MetraScheduleFile): Promise<void> {
+  await fs.mkdir(path.dirname(filePath), { recursive: true })
+  const temp = `${filePath}.${process.pid}.tmp`
+  await fs.writeFile(temp, `${JSON.stringify(file, null, 2)}\n`, 'utf8')
+  await fs.rename(temp, filePath)
 }
 
 function isStale(file: MetraScheduleFile, now: Date): boolean {
@@ -229,6 +247,10 @@ function isStale(file: MetraScheduleFile, now: Date): boolean {
  * Resolve the Metra schedule, refreshing from the GTFS feed when the cached
  * copy is missing or stale. Never throws: a failure degrades to whatever is
  * already cached, or to the seed.
+ *
+ * Before re-downloading the (multi-megabyte) schedule zip, this checks Metra's
+ * `published.txt` — if it still names the build the cache was parsed from,
+ * nothing has changed upstream and only the cache's timestamp is bumped.
  */
 export async function loadMetraSchedule(
   filePath: string,
@@ -245,12 +267,20 @@ export async function loadMetraSchedule(
   }
 
   try {
-    const fresh = buildMetraSchedule(await fetchGtfsFeed(GTFS_URL, apiKey))
+    const publishedVersion = await fetchPublishedVersion(PUBLISHED_URL, apiKey).catch(() => null)
+    if (publishedVersion && cached?.source === 'gtfs' && cached.publishedVersion === publishedVersion) {
+      const unchanged: MetraScheduleFile = { ...cached, fetchedAt: now.toISOString() }
+      await writeCache(filePath, unchanged)
+      console.log(`[metra] schedule unchanged (published.txt still "${publishedVersion}")`)
+      return unchanged
+    }
+
+    const fresh: MetraScheduleFile = {
+      ...buildMetraSchedule(await fetchGtfsFeed(SCHEDULE_URL, apiKey)),
+      publishedVersion,
+    }
     if (fresh.stations.length === 0) throw new Error('GTFS feed returned no stations')
-    await fs.mkdir(path.dirname(filePath), { recursive: true })
-    const temp = `${filePath}.${process.pid}.tmp`
-    await fs.writeFile(temp, `${JSON.stringify(fresh, null, 2)}\n`, 'utf8')
-    await fs.rename(temp, filePath)
+    await writeCache(filePath, fresh)
     console.log(`[metra] refreshed ${fresh.stations.length} stations from the GTFS feed`)
     return fresh
   } catch (error) {

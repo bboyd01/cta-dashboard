@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { buildMetraSchedule, MetraScheduleIndex } from './schedule.ts'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { buildMetraSchedule, loadMetraSchedule, MetraScheduleIndex } from './schedule.ts'
 import type { GtfsFeed } from './gtfs.ts'
 
 /** A minimal but complete feed: one route, two stations, one round trip. */
@@ -139,5 +142,60 @@ describe('MetraScheduleIndex.departuresAt', () => {
   it('returns nothing for an unknown station', () => {
     const index = new MetraScheduleIndex(buildMetraSchedule(feed()))
     expect(index.departuresAt('Nowhere', new Date('2026-09-14T10:00:00Z'))).toEqual([])
+  })
+})
+
+describe('loadMetraSchedule', () => {
+  let dir: string
+  const file = () => path.join(dir, 'metra-schedule.json')
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cta-metra-'))
+  })
+  afterEach(async () => {
+    await fs.rm(dir, { recursive: true, force: true })
+  })
+
+  it('falls back to the bundled seed when no API key is configured', async () => {
+    const loaded = await loadMetraSchedule(file(), '')
+    expect(loaded.source).toBe('seed')
+    expect(loaded.stations.length).toBeGreaterThan(0)
+  })
+
+  it('prefers a fresh cached copy over refetching, even without a key', async () => {
+    const cached = {
+      source: 'gtfs',
+      fetchedAt: new Date().toISOString(),
+      publishedVersion: 'v1',
+      stations: [{ mapId: 'Cached', name: 'Cached', lines: ['BNSF'], stops: [] }],
+      trips: [],
+      calendar: {},
+      exceptions: {},
+    }
+    await fs.writeFile(file(), JSON.stringify(cached), 'utf8')
+    const loaded = await loadMetraSchedule(file(), '')
+    expect(loaded.stations[0].name).toBe('Cached')
+  })
+
+  it('keeps a stale cached copy when the feed is unreachable', async () => {
+    const stale = {
+      source: 'gtfs',
+      fetchedAt: new Date('2020-01-01').toISOString(),
+      publishedVersion: 'v1',
+      stations: [{ mapId: 'Stale', name: 'Stale', lines: ['BNSF'], stops: [] }],
+      trips: [],
+      calendar: {},
+      exceptions: {},
+    }
+    await fs.writeFile(file(), JSON.stringify(stale), 'utf8')
+    // A bogus key with no real network access exercises exactly the boot-time
+    // failure path: the feed can't be reached, so the stale cache is kept.
+    const loaded = await loadMetraSchedule(file(), 'not-a-real-key')
+    expect(loaded.stations[0].name).toBe('Stale')
+  })
+
+  it('ignores an unreadable cache and still returns usable data', async () => {
+    await fs.writeFile(file(), 'not json at all', 'utf8')
+    expect((await loadMetraSchedule(file(), '')).stations.length).toBeGreaterThan(0)
   })
 })
