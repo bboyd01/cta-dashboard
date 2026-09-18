@@ -1,19 +1,23 @@
 /**
- * Train and bus glyphs, drawn as solid silhouettes with the badge color punched
- * back through for windows and lights. Inline SVG so the body inherits the
- * badge's text color, and the knockouts read the badge's own background from
- * --card-accent rather than guessing a fill.
+ * Train, Metra and bus glyphs, drawn as solid silhouettes with the badge color
+ * punched back through for windows and lights. Inline SVG so the body inherits
+ * the badge's text color, and the knockouts read the badge's own background
+ * from --card-accent rather than guessing a fill.
  *
- * The train stays front-on and the bus in profile: at badge size two side-view
- * vehicles are nearly indistinguishable, and the card's accent color only tells
- * you which line it is, not which mode. The bus was the one that read wrong —
- * a short body with a sloped nose is a van — so it is now drawn with the
- * proportions that make a bus a bus: long, flat-fronted, a destination sign
- * over the windshield and a row of equal windows.
+ * The two trains stay front-on and the bus in profile: at badge size two
+ * side-view vehicles are nearly indistinguishable, and the card's accent color
+ * only tells you which line it is, not which mode. The bus was the one that
+ * read wrong — a short body with a sloped nose is a van — so it is now drawn
+ * with the proportions that make a bus a bus: long, flat-fronted, a
+ * destination sign over the windshield and a row of equal windows. Metra's
+ * bi-level coaches are boxier and taller than an 'L' car, which is what tells
+ * the two train glyphs apart.
  */
 
-export function LineIcon({ kind }: { kind: 'train' | 'bus' }) {
-  return kind === 'train' ? <TrainGlyph /> : <BusGlyph />
+export function LineIcon({ kind }: { kind: 'train' | 'bus' | 'metra' }) {
+  if (kind === 'train') return <TrainGlyph />
+  if (kind === 'metra') return <MetraGlyph />
+  return <BusGlyph />
 }
 
 const SIZE = 20
@@ -40,6 +44,36 @@ function BusGlyph() {
       <circle cx="7" cy="17.1" r="1.05" fill={KNOCKOUT} />
       <circle cx="17" cy="17.1" r="2.7" fill="currentColor" />
       <circle cx="17" cy="17.1" r="1.05" fill={KNOCKOUT} />
+    </svg>
+  )
+}
+
+/**
+ * Front view of a bi-level commuter coach: a boxier, taller cab than the 'L'
+ * train, with a single wide windshield band and paired headlights up top —
+ * the silhouette Metra's own gallery cars are known for.
+ */
+function MetraGlyph() {
+  return (
+    <svg width={SIZE} height={SIZE} viewBox="0 0 24 24" aria-hidden="true">
+      {/* Body: square shoulders, flat roof, taller than the 'L' car. */}
+      <path
+        fill="currentColor"
+        d="M6.4 2.4h11.2a2.4 2.4 0 0 1 2.4 2.4v10.4a2.8 2.8 0 0 1-2.8 2.8H6.8A2.8 2.8 0 0 1 4 15.2V4.8a2.4 2.4 0 0 1 2.4-2.4Z"
+      />
+      {/* Headlights, up under the roofline. */}
+      <circle cx="8.1" cy="5.1" r="1.05" fill={KNOCKOUT} />
+      <circle cx="15.9" cy="5.1" r="1.05" fill={KNOCKOUT} />
+      {/* One wide windshield band, the bi-level's signature look. */}
+      <rect x="6.1" y="7.4" width="11.8" height="5.6" rx="1" fill={KNOCKOUT} />
+      {/* Skirt stripe. */}
+      <rect x="4" y="14.6" width="16" height="1.6" fill={KNOCKOUT} />
+      {/* Rail below, with the trucks resting on it. */}
+      <path
+        d="M8.6 18.6 6.8 21M15.4 18.6 17.2 21"
+        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+      />
+      <path d="M3.6 21.6h16.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   )
 }

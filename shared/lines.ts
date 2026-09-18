@@ -7,6 +7,8 @@
  * special-case one line.
  */
 
+import { isMetraLineId, METRA_LINES } from './metraLines.ts'
+
 export type LineId = 'Red' | 'Blue' | 'Brn' | 'G' | 'Org' | 'P' | 'Pink' | 'Y'
 
 export type LineInfo = {
@@ -41,7 +43,9 @@ export function isLineId(value: string): value is LineId {
   return value in LINES
 }
 
-/** Accent for any card, train or bus. */
+/** Accent for any card: 'L' train, Metra, or bus. */
 export function accentFor(route: string): { color: string; onColor: string } {
-  return isLineId(route) ? LINES[route] : BUS_ACCENT
+  if (isLineId(route)) return LINES[route]
+  if (isMetraLineId(route)) return METRA_LINES[route]
+  return BUS_ACCENT
 }

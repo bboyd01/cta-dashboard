@@ -1,17 +1,19 @@
 /**
  * Add or reconfigure a card.
  *
- * Trains go line → station → direction; buses go route → direction → stop,
- * because a CTA bus stop id is already direction-specific (the two sides of the
- * street are different ids). 'Both directions' therefore means two stop ids in
- * both cases, which is why a Card holds a list rather than a single stop.
+ * Trains and Metra both go line → station → direction; buses go route →
+ * direction → stop, because a CTA bus stop id is already direction-specific
+ * (the two sides of the street are different ids). 'Both directions'
+ * therefore means two stop ids in all cases, which is why a Card holds a list
+ * rather than a single stop.
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import type { BusRoute, BusStop, Card, Station } from '../../shared/types.ts'
-import { LINES, type LineId } from '../../shared/lines.ts'
+import type { BusRoute, BusStop, Card, CardKind, Station } from '../../shared/types.ts'
+import { LINES } from '../../shared/lines.ts'
+import { METRA_LINES } from '../../shared/metraLines.ts'
 import { directionOptions } from '../../shared/directions.ts'
-import { api, type LineSummary } from '../api.ts'
+import { api, type LineSummary, type MetraLineSummary } from '../api.ts'
 import { Combobox } from './Combobox.tsx'
 import { newId } from '../lib/id.ts'
 
@@ -25,7 +27,7 @@ type Props = {
 const BOTH = '__both__'
 
 export function AddCardDialog({ existing, onCancel, onSave }: Props) {
-  const [kind, setKind] = useState<'train' | 'bus'>(existing?.kind ?? 'train')
+  const [kind, setKind] = useState<CardKind>(existing?.kind ?? 'train')
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -57,6 +59,12 @@ export function AddCardDialog({ existing, onCancel, onSave }: Props) {
               Train
             </button>
             <button
+              type="button" className="choice" aria-pressed={kind === 'metra'}
+              onClick={() => setKind('metra')}
+            >
+              Metra
+            </button>
+            <button
               type="button" className="choice" aria-pressed={kind === 'bus'}
               onClick={() => setKind('bus')}
             >
@@ -65,11 +73,31 @@ export function AddCardDialog({ existing, onCancel, onSave }: Props) {
           </div>
         </div>
 
-        {kind === 'train' ? (
-          <TrainPicker existing={existing} onCancel={onCancel} onSave={onSave} />
-        ) : (
-          <BusPicker existing={existing} onCancel={onCancel} onSave={onSave} />
+        {kind === 'train' && (
+          <RailPicker
+            kind="train"
+            existing={existing}
+            onCancel={onCancel}
+            onSave={onSave}
+            defaultLine="Brn"
+            lines={LINES}
+            fetchLines={api.lines}
+            fetchStations={api.stations}
+          />
         )}
+        {kind === 'metra' && (
+          <RailPicker
+            kind="metra"
+            existing={existing}
+            onCancel={onCancel}
+            onSave={onSave}
+            defaultLine="BNSF"
+            lines={METRA_LINES}
+            fetchLines={api.metraLines}
+            fetchStations={api.metraStations}
+          />
+        )}
+        {kind === 'bus' && <BusPicker existing={existing} onCancel={onCancel} onSave={onSave} />}
       </div>
     </div>
   )
@@ -84,10 +112,28 @@ function Actions({ onCancel, disabled }: { onCancel: () => void; disabled: boole
   )
 }
 
-function TrainPicker({ existing, onCancel, onSave }: Props) {
-  const initialLine = existing?.kind === 'train' ? (existing.route as LineId) : 'Brn'
-  const [lines, setLines] = useState<LineSummary[]>([])
-  const [line, setLine] = useState<LineId>(initialLine)
+type RailLineSummary = LineSummary | MetraLineSummary
+
+type RailPickerProps = Props & {
+  /** 'train' picks CTA 'L' lines; 'metra' picks Metra lines. Same line -> station -> direction flow. */
+  kind: 'train' | 'metra'
+  defaultLine: string
+  lines: Record<string, { id: string; name: string; color: string }>
+  fetchLines: () => Promise<RailLineSummary[]>
+  fetchStations: (line: string) => Promise<{ isSeed: boolean; stations: Station[] }>
+}
+
+/**
+ * Line -> station -> direction, shared by CTA trains and Metra: both model a
+ * station as platforms grouped by direction, so the only thing that differs
+ * between the two modes is which catalog endpoints and line colors back it.
+ */
+function RailPicker({
+  kind, existing, onCancel, onSave, defaultLine, lines: staticLines, fetchLines, fetchStations,
+}: RailPickerProps) {
+  const initialLine = existing?.kind === kind ? existing.route : defaultLine
+  const [lines, setLines] = useState<RailLineSummary[]>([])
+  const [line, setLine] = useState(initialLine)
   const [stations, setStations] = useState<Station[]>([])
   const [isSeed, setIsSeed] = useState(false)
   const [mapId, setMapId] = useState(existing?.stationId ?? '')
@@ -95,13 +141,12 @@ function TrainPicker({ existing, onCancel, onSave }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.lines().then(setLines).catch(() => setLines([]))
-  }, [])
+    fetchLines().then(setLines).catch(() => setLines([]))
+  }, [fetchLines])
 
   useEffect(() => {
     let active = true
-    api
-      .stations(line)
+    fetchStations(line)
       .then((catalog) => {
         if (!active) return
         setStations(catalog.stations)
@@ -141,9 +186,9 @@ function TrainPicker({ existing, onCancel, onSave }: Props) {
     if (chosen.length === 0) return
     onSave({
       id: existing?.id ?? newId('card'),
-      kind: 'train',
+      kind,
       route: line,
-      title: LINES[line].name,
+      title: staticLines[line]?.name ?? line,
       stationId: station.mapId,
       stationName: station.name,
       direction: direction === BOTH ? null : direction,
@@ -156,17 +201,18 @@ function TrainPicker({ existing, onCancel, onSave }: Props) {
       {error && <p className="banner banner-error">{error}</p>}
       {isSeed && (
         <p className="banner">
-          Showing a small built-in station list. The full list loads once the server can
-          reach the city data portal.
+          {kind === 'train'
+            ? "Showing a small built-in station list. The full list loads once the server can reach the city data portal."
+            : 'Showing a small built-in station list. The full list loads once the server can reach the Metra GTFS feed.'}
         </p>
       )}
 
       <div className="field">
         <label>Line</label>
-        <Combobox<LineId>
+        <Combobox
           value={line}
           onChange={setLine}
-          options={(lines.length ? lines : Object.values(LINES)).map((item) => ({
+          options={(lines.length ? lines : Object.values(staticLines)).map((item) => ({
             value: item.id,
             label: item.name,
           }))}

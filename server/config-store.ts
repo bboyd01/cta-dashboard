@@ -28,7 +28,7 @@ import type {
 const TIME_FORMATS: TimeFormat[] = ['countdown', 'clock']
 const COLUMN_SETTINGS: ColumnSetting[] = ['auto', '1', '2', '3', '4']
 const MOBILE_COLUMN_SETTINGS: MobileColumnSetting[] = ['auto', '1', '2']
-const CARD_KINDS: CardKind[] = ['train', 'bus']
+const CARD_KINDS: CardKind[] = ['train', 'bus', 'metra']
 
 /**
  * Creates the data directory and proves we can write to it.
