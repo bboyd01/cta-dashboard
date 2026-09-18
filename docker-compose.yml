@@ -1,6 +1,11 @@
 services:
   cta-dashboard:
-    build: .
+    build:
+      context: .
+      # Set GIT_SHA before building to make /api/health's buildVersion useful:
+      #   GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
     image: cta-dashboard
     container_name: cta-dashboard
     restart: unless-stopped

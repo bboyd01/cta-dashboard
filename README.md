@@ -106,6 +106,11 @@ Point it at this repo and let it build the `Dockerfile`. Then:
 4. **Put the platform's own auth in front of it** if it's on a public domain —
    see the warning below.
 
+Most platforms that build straight from a git push (Render, Railway, Vercel,
+Heroku) set their own commit-SHA env var automatically, which `/api/health`
+picks up as `buildVersion` with no configuration needed — see the
+[Environment](#environment) table.
+
 Redeploying is safe: `/data` is untouched by a rebuild, so your configuration
 survives.
 
@@ -113,8 +118,13 @@ survives.
 
 ```bash
 cp .env.example .env        # fill in your keys
-docker compose up -d --build
+GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
 ```
+
+`GIT_SHA` is optional but worth setting: it's stamped into `/api/health` as
+`buildVersion`, so after a redeploy you can confirm the running container
+actually picked up your latest commit with `curl localhost:3000/api/health`
+instead of guessing from restart timestamps.
 
 This binds to `127.0.0.1:3000`, reachable only from the host, because the app
 has no authentication. Two ways to change that:
@@ -130,7 +140,7 @@ PUBLISH_ADDR=0.0.0.0:3000 docker compose up -d
 ### Plain docker run
 
 ```bash
-docker build -t cta-dashboard .
+docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) -t cta-dashboard .
 docker volume create cta-data
 docker run -d --name cta-dashboard --restart unless-stopped \
   -p 127.0.0.1:3000:3000 \
@@ -181,6 +191,34 @@ That is the full station list landing in `/data` — around 145 of them. If you 
 `falling back to the bundled seed`, outbound HTTPS to `data.cityofchicago.org`
 is blocked — the dashboard still runs, but the picker only offers a handful of
 stations until it succeeds. The Options page shows which source is in use.
+
+### Confirming a deploy picked up new code
+
+`GET /api/health` is the fastest way to check what a running container is
+actually doing, without shell access to it:
+
+```json
+{
+  "buildVersion": "2adc186",
+  "mock": false,
+  "stations": { "source": "portal", "fetchedAt": "...", "count": 145 },
+  "metraStations": { "source": "gtfs", "fetchedAt": "...", "count": 240, "tripCount": 1830 },
+  "metraRealtime": { "keyConfigured": true, "fetchedAt": "...", "error": null, "tripCount": 1204 }
+}
+```
+
+- **`buildVersion`** is the short git commit the running image was built from
+  (see `GIT_SHA` in [Environment](#environment)) — `"unknown"` means neither a
+  build arg nor a platform-provided commit env var was available. After a
+  redeploy that doesn't seem to have changed anything, check this first: if it
+  still shows the old commit, the deploy didn't actually rebuild the image.
+- **`metraRealtime`** reports the last attempt to fetch Metra's GTFS-realtime
+  trip updates feed. `keyConfigured: false` means `METRA_API_KEY` isn't set at
+  all; a non-null `error` means the fetch itself failed (check the message);
+  `tripCount: 0` with no error usually means the feed returned data but
+  nothing in it matched anything useful. Compare it against
+  `metraStations.tripCount` (the static schedule's own trip count) to gauge
+  how much of the schedule realtime is actually covering.
 
 ## How it works
 
@@ -252,3 +290,4 @@ needs to change.
 | `DATA_DIR` | `./data` | `/data` in the container; leave as-is there |
 | `CTA_MOCK` | `0` | `1` serves fixtures, no keys needed |
 | `PUBLISH_ADDR` | `127.0.0.1:3000` | Compose only — where to publish the port |
+| `GIT_SHA` | `unknown` | Build arg, not runtime — see [buildVersion](#confirming-a-deploy-picked-up-new-code) |

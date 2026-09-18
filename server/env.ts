@@ -13,10 +13,31 @@ export type Env = {
   metraApiKey: string
   discordWebhookUrl: string
   mock: boolean
+  /** Short commit SHA of the running build, for confirming a deploy actually picked up new code. */
+  buildVersion: string
 }
 
 function flag(value: string | undefined): boolean {
   return value === '1' || value?.toLowerCase() === 'true'
+}
+
+/**
+ * Best-effort commit identifier for /api/health, so "did my redeploy actually
+ * take?" has a real answer instead of a guess. `GIT_SHA` is what this repo's
+ * own Dockerfile/docker-compose.yml stamp in (see README); the rest are set
+ * automatically, with no configuration, by common PaaS platforms that build
+ * straight from a git push.
+ */
+function detectBuildVersion(source: NodeJS.ProcessEnv): string {
+  return (
+    source.GIT_SHA ??
+    source.SOURCE_COMMIT ??
+    source.RENDER_GIT_COMMIT ??
+    source.RAILWAY_GIT_COMMIT_SHA ??
+    source.VERCEL_GIT_COMMIT_SHA ??
+    source.HEROKU_SLUG_COMMIT ??
+    'unknown'
+  ).trim().slice(0, 12) || 'unknown'
 }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
@@ -34,6 +55,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     metraApiKey: source.METRA_API_KEY?.trim() ?? '',
     discordWebhookUrl: source.DISCORD_WEBHOOK_URL?.trim() ?? '',
     mock,
+    buildVersion: detectBuildVersion(source),
   }
 
   if (!Number.isFinite(env.port) || env.port <= 0) {

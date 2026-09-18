@@ -7,6 +7,7 @@ import type { MetraLineId } from '../shared/metraLines.ts'
 export type Health = {
   ok: boolean
   mock: boolean
+  buildVersion: string
   discordConfigured: boolean
   stations: { source: 'portal' | 'seed'; fetchedAt: string | null; count: number }
   metraStations: { source: 'gtfs' | 'seed'; fetchedAt: string | null; count: number; tripCount: number }

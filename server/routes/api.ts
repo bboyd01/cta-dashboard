@@ -24,6 +24,7 @@ export type ApiDeps = {
   mock: boolean
   discordConfigured: boolean
   metraApiKeyConfigured: boolean
+  buildVersion: string
 }
 
 /** Bus catalog calls are cached far longer than predictions — routes rarely move. */
@@ -52,6 +53,7 @@ export function createApiRouter(deps: ApiDeps): Router {
     res.json({
       ok: true,
       mock: deps.mock,
+      buildVersion: deps.buildVersion,
       discordConfigured: deps.discordConfigured,
       stations: {
         source: stations.file.source,

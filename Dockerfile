@@ -18,9 +18,17 @@ RUN npm run build
 # ---- runtime ----
 FROM node:22-alpine AS runtime
 WORKDIR /app
+
+# Stamped into /api/health as buildVersion, so a redeploy that silently didn't
+# pick up new code is a one-request check instead of a guess. Pass with
+# `--build-arg GIT_SHA=$(git rev-parse --short HEAD)`; a platform that builds
+# straight from a git push usually sets its own equivalent env var instead
+# (see server/env.ts), and this is simply left as 'unknown' otherwise.
+ARG GIT_SHA=unknown
 ENV NODE_ENV=production \
     PORT=3000 \
-    DATA_DIR=/data
+    DATA_DIR=/data \
+    GIT_SHA=${GIT_SHA}
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
