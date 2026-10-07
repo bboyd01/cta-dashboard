@@ -52,7 +52,13 @@ export async function ensureDataDir(dir: string): Promise<void> {
 export function defaultConfig(): Config {
   return {
     cards: [],
-    display: { timeFormat: 'countdown', columns: 'auto', mobileColumns: 'auto', departuresPerCard: 3 },
+    display: {
+      timeFormat: 'countdown',
+      columns: 'auto',
+      mobileColumns: 'auto',
+      departuresPerCard: 3,
+      metraLiteralTimeAfterMinutes: 45,
+    },
     digests: [],
     groups: [],
     lastSelectedGroupId: null,
@@ -153,6 +159,12 @@ function sanitizeDisplay(raw: unknown): DisplayOptions {
     columns: oneOf(raw.columns, COLUMN_SETTINGS, base.columns),
     mobileColumns: oneOf(raw.mobileColumns, MOBILE_COLUMN_SETTINGS, base.mobileColumns),
     departuresPerCard: int(raw.departuresPerCard, base.departuresPerCard, 1, 6),
+    metraLiteralTimeAfterMinutes: int(
+      raw.metraLiteralTimeAfterMinutes,
+      base.metraLiteralTimeAfterMinutes,
+      5,
+      180,
+    ),
   }
 }
 

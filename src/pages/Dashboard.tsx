@@ -257,6 +257,7 @@ export function Dashboard({ configState }: { configState: ConfigState }) {
               card={card}
               result={byCardId.get(card.id)}
               timeFormat={config.display.timeFormat}
+              metraLiteralTimeAfterMinutes={config.display.metraLiteralTimeAfterMinutes}
               limit={config.display.departuresPerCard}
               now={now}
               stale={isStale}

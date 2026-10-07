@@ -129,6 +129,26 @@ export function Options({ configState }: { configState: ConfigState }) {
             onChange={(e) => setDisplay({ departuresPerCard: Number(e.target.value) })}
           />
         </div>
+
+        <div className="setting">
+          <div>
+            <div className="setting-label">Metra: show literal time after</div>
+            <div className="setting-hint">
+              Metra-only, independent of the countdown/clock setting above. When departure
+              times are showing as a countdown, a Metra departure further out than this many
+              minutes shows its literal time instead (e.g. "6:42 PM") since a far-out
+              countdown is less useful for infrequent commuter trains.
+            </div>
+          </div>
+          <input
+            type="number"
+            min={5}
+            max={180}
+            value={display.metraLiteralTimeAfterMinutes}
+            aria-label="Metra: show literal time after minutes"
+            onChange={(e) => setDisplay({ metraLiteralTimeAfterMinutes: Number(e.target.value) })}
+          />
+        </div>
       </section>
 
       <section className="section">

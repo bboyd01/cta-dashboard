@@ -44,6 +44,17 @@ describe('sanitizeConfig', () => {
     expect(result.display.departuresPerCard).toBe(6)
   })
 
+  it('defaults and clamps the Metra literal-time threshold independently of departuresPerCard', () => {
+    const defaulted = sanitizeConfig({ display: {} })
+    expect(defaulted.display.metraLiteralTimeAfterMinutes).toBe(45)
+
+    const clamped = sanitizeConfig({ display: { metraLiteralTimeAfterMinutes: 999 } })
+    expect(clamped.display.metraLiteralTimeAfterMinutes).toBe(180)
+
+    const valid = sanitizeConfig({ display: { metraLiteralTimeAfterMinutes: 60 } })
+    expect(valid.display.metraLiteralTimeAfterMinutes).toBe(60)
+  })
+
   it('falls back on an unknown enum value', () => {
     const result = sanitizeConfig({ display: { timeFormat: 'sundial', columns: '7' } })
     expect(result.display.timeFormat).toBe('countdown')

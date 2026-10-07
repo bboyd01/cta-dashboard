@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import type { Card, CardDepartures, TimeFormat } from '../../shared/types.ts'
 import { accentFor } from '../../shared/lines.ts'
-import { formatDeparture } from '../../shared/format.ts'
+import { formatDeparture, minutesUntil } from '../../shared/format.ts'
 import { LineIcon } from './LineIcon.tsx'
 import { CardMenu } from './CardMenu.tsx'
 
@@ -9,6 +9,8 @@ type Props = {
   card: Card
   result: CardDepartures | undefined
   timeFormat: TimeFormat
+  /** Metra-only, independent of `timeFormat`: see `shared/types.ts`. */
+  metraLiteralTimeAfterMinutes: number
   limit: number
   now: Date
   stale: boolean
@@ -20,7 +22,7 @@ type Props = {
 }
 
 export function DepartureCard({
-  card, result, timeFormat, limit, now, stale,
+  card, result, timeFormat, metraLiteralTimeAfterMinutes, limit, now, stale,
   isDragging, isDropTarget, onDragStart,
   onReconfigure, onRemove,
 }: Props) {
@@ -128,7 +130,15 @@ export function DepartureCard({
       ) : (
         <ul className="departures">
           {departures.map((departure, index) => {
-            const time = formatDeparture(departure, now, timeFormat)
+            // Metra runs infrequently enough that a far-out countdown ("72 min") is
+            // less useful than the literal time -- independent of the global setting.
+            const effectiveFormat =
+              card.kind === 'metra' &&
+              timeFormat === 'countdown' &&
+              minutesUntil(departure.arrivalAt, now) > metraLiteralTimeAfterMinutes
+                ? 'clock'
+                : timeFormat
+            const time = formatDeparture(departure, now, effectiveFormat)
             return (
               <li className="departure" key={`${departure.stopId}-${departure.arrivalAt}-${index}`}>
                 <span className="departure-dest">

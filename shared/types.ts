@@ -55,6 +55,12 @@ export type DisplayOptions = {
   /** Column count below the mobile breakpoint; independent of `columns`. */
   mobileColumns: MobileColumnSetting
   departuresPerCard: number
+  /**
+   * Metra-only, independent of `timeFormat`: a countdown departure further
+   * out than this many minutes renders as a literal clock time instead.
+   * Metra runs infrequently enough that "72 min" is less useful than "6:42 PM".
+   */
+  metraLiteralTimeAfterMinutes: number
 }
 
 /** A recurring Discord message: "these cards, these days, at this time". */
